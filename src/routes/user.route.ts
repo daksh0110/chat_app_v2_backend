@@ -1,18 +1,14 @@
 import { Router } from "express";
+import { validation } from "../middleware/validate.middleware";
+import { userValidation } from "../validator/user.validator";
+import { userController } from "../controllers/user.controller";
 
 const router = Router();
 
-/**
- * @swagger
- * /api/users:
- *   get:
- *     summary: Get all users
- *     responses:
- *       200:
- *         description: Success
- */
-router.get("/", (req, res) => {
-  res.json({ message: "Users fetched" });
-});
+router.post(
+  "/create",
+  validation(userValidation.createUserValidator),
+  userController.createUser,
+);
 
 export default router;

@@ -1,12 +1,11 @@
 import swaggerJsdoc from "swagger-jsdoc";
 
-const options: swaggerJsdoc.Options = {
+const options = {
   definition: {
     openapi: "3.0.0",
     info: {
-      title: "Express TS API",
+      title: "My API",
       version: "1.0.0",
-      description: "API documentation for my backend",
     },
     servers: [
       {
@@ -14,7 +13,7 @@ const options: swaggerJsdoc.Options = {
       },
     ],
   },
-  apis: ["./src/routes/*.ts"],
+  apis: ["./src/docs/**/*.ts"],
 };
 
 export const swaggerSpec = swaggerJsdoc(options);
