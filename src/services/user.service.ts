@@ -3,6 +3,7 @@ import { UserModel } from "../models/user.model";
 import { CreateUserDto, loginUserDto } from "../types/user.types";
 import { comparePassword, encryptpassword } from "../util/bcrypt";
 import { createToken } from "../util/jwt";
+import { verifyGoogleToken } from "../util/google";
 
 const createUser = async (data: CreateUserDto) => {
   try {
@@ -48,7 +49,26 @@ const loginUser = async (data: loginUserDto) => {
   };
 };
 
+const googleauth = async (data: { token: string }) => {
+  const info = await verifyGoogleToken(data.token);
+  if (!info) {
+    throw createHttpError(400, { message: "Invalid accessToken" });
+  }
+  const { email, name } = info;
+
+  const user = await UserModel.findOne({
+    email: email,
+  });
+  if (user) {
+    const accessToken = createToken(user._id.toString());
+    return { accessToken };
+  }
+
+  return { name, email, newUser: true, accessToken: null };
+};
+
 export const userService = {
   createUser,
   loginUser,
+  googleauth,
 };

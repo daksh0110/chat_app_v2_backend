@@ -12,6 +12,11 @@ router
     userController.createUser,
   )
 
-  .post("/login", userValidation.loginUserValidator, userController.loginUser);
+  .post("/login", userValidation.loginUserValidator, userController.loginUser)
+  .post(
+    "/google/auth",
+    userValidation.googleAuthValidation,
+    userController.googleAuth,
+  );
 
 export default router;
