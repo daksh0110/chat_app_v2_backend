@@ -1,4 +1,4 @@
-import { body } from "express-validator";
+import { body, query } from "express-validator";
 
 const createUserValidator = [
   body("name")
@@ -42,8 +42,17 @@ const googleAuthValidation = [
   body("token").notEmpty().withMessage("token is required").bail(),
 ];
 
+export const getUsers = [
+  query("search").optional().isString().withMessage("Search must be a string"),
+
+  query("page")
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage("Page must be a positive integer"),
+];
 export const userValidation = {
   createUserValidator,
   loginUserValidator,
   googleAuthValidation,
+  getUsers,
 };

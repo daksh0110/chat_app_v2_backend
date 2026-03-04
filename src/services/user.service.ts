@@ -1,9 +1,10 @@
 import createHttpError from "http-errors";
-import { UserModel } from "../models/user.model";
-import { CreateUserDto, loginUserDto } from "../types/user.types";
+import { IUser, UserModel } from "../models/user.model";
+import { CreateUserDto, loginUserDto, searchUser } from "../types/user.types";
 import { comparePassword, encryptpassword } from "../util/bcrypt";
 import { createToken } from "../util/jwt";
 import { verifyGoogleToken } from "../util/google";
+import mongoose, { QueryFilter } from "mongoose";
 
 const createUser = async (data: CreateUserDto) => {
   try {
@@ -37,7 +38,6 @@ const loginUser = async (data: loginUserDto) => {
     dbPassword: user.password,
     userPassword: password,
   });
-  console.log(user.password, password);
   if (!isMatch) {
     throw createHttpError(400, { message: "Invalid credentials" });
   }
@@ -67,8 +67,37 @@ const googleauth = async (data: { token: string }) => {
   return { name, email, newUser: true, accessToken: null };
 };
 
+const getUsers = async (data: searchUser) => {
+  const page = parseInt(data.page || "1");
+  const search = data.search || "";
+
+  const limit = 10;
+  const skip = (page - 1) * limit;
+
+  const filter: QueryFilter<IUser> = {};
+
+  if (search) {
+    filter.$or = [
+      { name: { $regex: search, $options: "i" } },
+      { email: { $regex: search, $options: "i" } },
+    ];
+  }
+
+  const users = await UserModel.find(filter)
+    .skip(skip)
+    .limit(limit)
+    .sort({ createdAt: -1 })
+    .select("name email")
+    .lean();
+  const processedUsers = users.map((user) => ({
+    ...user,
+    subtitle: user.email,
+  }));
+  return processedUsers;
+};
 export const userService = {
   createUser,
   loginUser,
   googleauth,
+  getUsers,
 };

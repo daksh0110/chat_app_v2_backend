@@ -21,8 +21,15 @@ const googleAuth = asyncHandler(async (req: Request, res: Response) => {
   createResponse(res, 200, "Login Successfully", response);
 });
 
+const getUsers = asyncHandler(async (req: Request, res: Response) => {
+  const data = req.query;
+  const response = await userService.getUsers(data);
+  createResponse(res, 200, "User Fetched sucessfuly", response);
+});
+
 export const userController = {
   createUser,
   loginUser,
   googleAuth,
+  getUsers,
 };
