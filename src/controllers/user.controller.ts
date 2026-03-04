@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import asyncHandler from "express-async-handler";
 import { userService } from "../services/user.service";
 import { createResponse } from "../util/response";
+import createHttpError from "http-errors";
 
 const createUser = asyncHandler(async (req: Request, res: Response) => {
   const data = req.body;
@@ -27,9 +28,21 @@ const getUsers = asyncHandler(async (req: Request, res: Response) => {
   createResponse(res, 200, "User Fetched sucessfuly", response);
 });
 
+const getMyProfile = asyncHandler(async (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    throw createHttpError(401, { message: "Authorization token is required" });
+  }
+  const token = authHeader.split(" ")[1];
+
+  const response = await userService.getMyProfile(token ?? "");
+  createResponse(res, 200, "User Fetched sucessfuly", response);
+});
+
 export const userController = {
   createUser,
   loginUser,
   googleAuth,
   getUsers,
+  getMyProfile,
 };

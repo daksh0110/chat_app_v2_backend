@@ -2,7 +2,7 @@ import createHttpError from "http-errors";
 import { IUser, UserModel } from "../models/user.model";
 import { CreateUserDto, loginUserDto, searchUser } from "../types/user.types";
 import { comparePassword, encryptpassword } from "../util/bcrypt";
-import { createToken } from "../util/jwt";
+import { createToken, verifyToken } from "../util/jwt";
 import { verifyGoogleToken } from "../util/google";
 import mongoose, { QueryFilter } from "mongoose";
 
@@ -95,9 +95,23 @@ const getUsers = async (data: searchUser) => {
   }));
   return processedUsers;
 };
+
+const getMyProfile = async (token: string) => {
+  const userInfo = verifyToken(token);
+  if (!userInfo.userId) {
+    throw createHttpError(400, { message: "Invalid accessToken" });
+  }
+
+  const user = await UserModel.findById(userInfo.userId)
+    .select("name email")
+    .lean();
+
+  return user;
+};
 export const userService = {
   createUser,
   loginUser,
   googleauth,
   getUsers,
+  getMyProfile,
 };

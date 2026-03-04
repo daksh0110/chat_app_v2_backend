@@ -1,4 +1,4 @@
-import { body, query } from "express-validator";
+import { body, header, query } from "express-validator";
 
 const createUserValidator = [
   body("name")
@@ -50,9 +50,18 @@ export const getUsers = [
     .isInt({ min: 1 })
     .withMessage("Page must be a positive integer"),
 ];
+
+export const getMyProfile = [
+  header("authorization")
+    .notEmpty()
+    .withMessage("Authorization header is required")
+    .matches(/^Bearer\s.+$/)
+    .withMessage("Authorization must be in 'Bearer <token>' format"),
+];
 export const userValidation = {
   createUserValidator,
   loginUserValidator,
   googleAuthValidation,
   getUsers,
+  getMyProfile,
 };
