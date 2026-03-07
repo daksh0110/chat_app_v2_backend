@@ -30,13 +30,20 @@ const getUsers = asyncHandler(async (req: Request, res: Response) => {
 
 const getMyProfile = asyncHandler(async (req: Request, res: Response) => {
   const authHeader = req.headers.authorization;
+  console.log("Auth Header", req.headers);
   if (!authHeader) {
     throw createHttpError(401, { message: "Authorization token is required" });
   }
   const token = authHeader.split(" ")[1];
-
+  console.log(token);
   const response = await userService.getMyProfile(token ?? "");
   createResponse(res, 200, "User Fetched sucessfuly", response);
+});
+
+const getUserById = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const response = await userService.getUserById(id as string);
+  createResponse(res, 200, "User fetched successfully", response);
 });
 
 export const userController = {
@@ -45,4 +52,5 @@ export const userController = {
   googleAuth,
   getUsers,
   getMyProfile,
+  getUserById,
 };

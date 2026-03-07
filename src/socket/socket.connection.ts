@@ -31,7 +31,7 @@ const socketConnection = () => {
         console.log("❌ Client disconnected:", user.userId);
       });
 
-      sendMessageSocket(socket);
+      sendMessageSocket(socket, user.userId);
     } catch (error) {
       console.log("❌ Invalid token");
       socket.disconnect();

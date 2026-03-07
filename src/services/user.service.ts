@@ -108,10 +108,28 @@ const getMyProfile = async (token: string) => {
 
   return user;
 };
+
+const getUserById = async (id: string) => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw createHttpError(400, { message: "Invalid user id" });
+  }
+
+  const user = await UserModel.findById(id).select("name email").lean();
+
+  if (!user) {
+    throw createHttpError(404, { message: "User not found" });
+  }
+
+  return {
+    ...user,
+    subtitle: user.email,
+  };
+};
 export const userService = {
   createUser,
   loginUser,
   googleauth,
   getUsers,
   getMyProfile,
+  getUserById,
 };

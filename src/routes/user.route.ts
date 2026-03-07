@@ -18,6 +18,7 @@ router
     userController.googleAuth,
   )
   .get("/", userValidation.getUsers, userController.getUsers)
-  .get("/me", userValidation.getMyProfile, userController.getMyProfile);
+  .get("/me", userController.getMyProfile)
+  .get("/:id", userValidation.getUserById, userController.getUserById);
 
 export default router;
