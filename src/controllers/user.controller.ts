@@ -30,12 +30,10 @@ const getUsers = asyncHandler(async (req: Request, res: Response) => {
 
 const getMyProfile = asyncHandler(async (req: Request, res: Response) => {
   const authHeader = req.headers.authorization;
-  console.log("Auth Header", req.headers);
   if (!authHeader) {
     throw createHttpError(401, { message: "Authorization token is required" });
   }
   const token = authHeader.split(" ")[1];
-  console.log(token);
   const response = await userService.getMyProfile(token ?? "");
   createResponse(res, 200, "User Fetched sucessfuly", response);
 });

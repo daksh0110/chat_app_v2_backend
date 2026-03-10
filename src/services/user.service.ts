@@ -103,7 +103,7 @@ const getMyProfile = async (token: string) => {
   }
 
   const user = await UserModel.findById(userInfo.userId)
-    .select("name email")
+    .select("name email _id")
     .lean();
 
   return user;

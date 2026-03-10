@@ -1,28 +1,30 @@
 import { model, Schema, Types } from "mongoose";
 
 export interface IMessage {
-  message: string;
+  chat_id: Types.ObjectId;
   sender_id: Types.ObjectId;
-  receiver_id: Types.ObjectId;
+  message: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
 
-const MessageSchema = new Schema<IMessage>(
+const messageSchema = new Schema<IMessage>(
   {
+    chat_id: {
+      type: Schema.Types.ObjectId,
+      ref: "ChatGroup",
+      required: true,
+    },
+
+    sender_id: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+
     message: {
       type: String,
       required: true,
-    },
-    sender_id: {
-      type: Schema.Types.ObjectId,
-      required: true,
-      ref: "User",
-    },
-    receiver_id: {
-      type: Schema.Types.ObjectId,
-      required: true,
-      ref: "User",
     },
   },
   {
@@ -30,4 +32,8 @@ const MessageSchema = new Schema<IMessage>(
   },
 );
 
-export const MessageModel = model<IMessage>("Message", MessageSchema);
+messageSchema.index({ chat_id: 1, createdAt: -1 });
+
+messageSchema.index({ sender_id: 1 });
+
+export const MessageModel = model<IMessage>("Message", messageSchema);

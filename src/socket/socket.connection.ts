@@ -3,15 +3,17 @@ import app from "../app";
 import http from "http";
 import sendMessageSocket from "./socket.send_message";
 import { verifyToken } from "../util/jwt";
+import { checkUserStatus } from "./user_status_check";
 
 export const server = http.createServer(app);
 
 export const io = new Server(server);
 
+export const onlineUsers = new Map<string, string>();
+
 const socketConnection = () => {
   io.on("connection", (socket: Socket) => {
     try {
-      console.log(socket.handshake.auth);
       const token = socket.handshake.auth?.token;
 
       if (!token) {
@@ -20,18 +22,23 @@ const socketConnection = () => {
       }
 
       const user = verifyToken(token);
+      const userId = user.userId;
+      socket.data.userId = userId;
 
-      socket.data.userId = user.userId;
+      socket.join(userId);
+      onlineUsers.set(userId, socket.id);
+      socket.broadcast.emit("user_online", { userId });
 
-      socket.join(user.userId);
-
-      console.log("✅ User connected:", user.userId);
+      console.log("✅ User connected:", userId);
 
       socket.on("disconnect", () => {
-        console.log("❌ Client disconnected:", user.userId);
+        console.log("❌ Client disconnected:", userId);
+        onlineUsers.delete(userId);
+        socket.broadcast.emit("user_offline", { userId });
       });
 
-      sendMessageSocket(socket, user.userId);
+      sendMessageSocket(socket, userId);
+      checkUserStatus(socket);
     } catch (error) {
       console.log("❌ Invalid token");
       socket.disconnect();
