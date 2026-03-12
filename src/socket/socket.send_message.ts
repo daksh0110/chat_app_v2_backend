@@ -6,7 +6,7 @@ import { CHAT_TYPE, ChatGroupModel } from "../models/chat_group.modal";
 export const sendMessageSocket = (socket: Socket, userId: string) => {
   socket.on("send_message", async (data) => {
     try {
-      const { message, receiver_id } = data;
+      const { message, receiver_id, temp_id } = data;
 
       const senderChats = await ChatMemberModel.find({
         user_id: userId,
@@ -40,6 +40,11 @@ export const sendMessageSocket = (socket: Socket, userId: string) => {
         message,
         sender_id: userId,
         chat_id: chatId,
+      });
+
+      socket.emit("message_sent", {
+        temp_id,
+        message_id: messageDb._id,
       });
 
       socket.to(receiver_id).emit("receive_message", {

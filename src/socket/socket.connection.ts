@@ -4,6 +4,7 @@ import http from "http";
 import sendMessageSocket from "./socket.send_message";
 import { verifyToken } from "../util/jwt";
 import { checkUserStatus } from "./user_status_check";
+import { messageDelivered } from "./message_delivered";
 
 export const server = http.createServer(app);
 
@@ -39,6 +40,7 @@ const socketConnection = () => {
 
       sendMessageSocket(socket, userId);
       checkUserStatus(socket);
+      messageDelivered(socket);
     } catch (error) {
       console.log("❌ Invalid token");
       socket.disconnect();
