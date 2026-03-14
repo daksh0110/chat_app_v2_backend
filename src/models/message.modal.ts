@@ -1,11 +1,19 @@
 import { model, Schema, Types } from "mongoose";
 
+export enum MessageStatus {
+  SENT = "sent",
+  DELIVERED = "delivered",
+  FAILED = "failed",
+  READ = "read",
+}
+
 export interface IMessage {
   chat_id: Types.ObjectId;
   sender_id: Types.ObjectId;
   message: string;
   createdAt?: Date;
   updatedAt?: Date;
+  status: MessageStatus;
 }
 
 const messageSchema = new Schema<IMessage>(
@@ -25,6 +33,11 @@ const messageSchema = new Schema<IMessage>(
     message: {
       type: String,
       required: true,
+    },
+    status: {
+      type: String,
+      enum: Object.values(MessageStatus),
+      default: MessageStatus.SENT,
     },
   },
   {
