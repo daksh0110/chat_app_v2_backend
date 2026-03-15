@@ -4,7 +4,9 @@ import { CreateUserDto, loginUserDto, searchUser } from "../types/user.types";
 import { comparePassword, encryptpassword } from "../util/bcrypt";
 import { createToken, verifyToken } from "../util/jwt";
 import { verifyGoogleToken } from "../util/google";
-import mongoose, { QueryFilter } from "mongoose";
+import mongoose, { PipelineStage, QueryFilter, Types } from "mongoose";
+import { ChatMemberModel } from "../models/chat_group_member.modal";
+import { MessageStatus } from "../models/message.modal";
 
 const createUser = async (data: CreateUserDto) => {
   try {
@@ -125,6 +127,109 @@ const getUserById = async (id: string) => {
     subtitle: user.email,
   };
 };
+const getChatsService = async (id: string) => {
+  const pipeline: PipelineStage[] = [
+    { $match: { user_id: new Types.ObjectId(id) } },
+
+    {
+      $lookup: {
+        from: "chatmembers",
+        localField: "chat_id",
+        foreignField: "chat_id",
+        as: "chatgroup",
+        pipeline: [
+          { $match: { user_id: { $ne: new Types.ObjectId(id) } } },
+          {
+            $lookup: {
+              from: "users",
+              localField: "user_id",
+              foreignField: "_id",
+              as: "users",
+              pipeline: [{ $project: { name: 1, email: 1 } }],
+            },
+          },
+          { $unwind: "$users" },
+        ],
+      },
+    },
+
+    {
+      $lookup: {
+        from: "messages",
+        localField: "chat_id",
+        foreignField: "chat_id",
+        as: "messages",
+        pipeline: [
+          { $sort: { createdAt: -1 } },
+          {
+            $project: {
+              _id: 1,
+              chat_id: 1,
+              message: 1,
+              sender_id: 1,
+              status: 1,
+              createdAt: 1,
+              is_read: { $eq: ["$status", MessageStatus.READ] },
+            },
+          },
+        ],
+      },
+    },
+
+    { $unwind: "$chatgroup" },
+
+    {
+      $project: {
+        chat_id: 1,
+        user_id: "$chatgroup.users._id",
+        name: "$chatgroup.users.name",
+        last_message: { $arrayElemAt: ["$messages.message", 0] },
+        last_message_time: { $arrayElemAt: ["$messages.createdAt", 0] },
+        messages: 1,
+        un_read_count: {
+          $size: {
+            $filter: {
+              input: "$messages",
+              as: "msg",
+              cond: {
+                $and: [
+                  { $ne: ["$$msg.sender_id", new Types.ObjectId(id)] },
+                  { $ne: ["$$msg.status", "read"] },
+                ],
+              },
+            },
+          },
+        },
+      },
+    },
+  ];
+
+  const chats = await ChatMemberModel.aggregate(pipeline);
+
+  // Flatten messages for Drift sync
+  const messages: any[] = [];
+
+  chats.forEach((chat) => {
+    chat.messages.forEach((msg: any) => {
+      messages.push({
+        ...msg,
+        chat_id: chat.chat_id,
+      });
+    });
+  });
+
+  return {
+    chats: chats.map((chat) => ({
+      chat_id: chat.chat_id,
+      user_id: chat.user_id,
+      name: chat.name,
+      last_message: chat.last_message,
+      last_message_time: chat.last_message_time,
+      un_read_count: chat.un_read_count,
+    })),
+    messages,
+  };
+};
 export const userService = {
   createUser,
   loginUser,
@@ -132,4 +237,5 @@ export const userService = {
   getUsers,
   getMyProfile,
   getUserById,
+  getChatsService,
 };

@@ -3,6 +3,7 @@ import asyncHandler from "express-async-handler";
 import { userService } from "../services/user.service";
 import { createResponse } from "../util/response";
 import createHttpError from "http-errors";
+import { IUser } from "../models/user.model";
 
 const createUser = asyncHandler(async (req: Request, res: Response) => {
   const data = req.body;
@@ -44,6 +45,13 @@ const getUserById = asyncHandler(async (req: Request, res: Response) => {
   createResponse(res, 200, "User fetched successfully", response);
 });
 
+const getChatsController = asyncHandler(async (req: Request, res: Response) => {
+  const user = (req as any).user as IUser;
+
+  const response = await userService.getChatsService(user._id.toString());
+  createResponse(res, 200, "chats fetched successfully", response);
+});
+
 export const userController = {
   createUser,
   loginUser,
@@ -51,4 +59,5 @@ export const userController = {
   getUsers,
   getMyProfile,
   getUserById,
+  getChatsController,
 };

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { validation } from "../middleware/validate.middleware";
 import { userValidation } from "../validator/user.validator";
 import { userController } from "../controllers/user.controller";
+import { verifyUser } from "../middleware/verifyUser.middleware";
 
 const router = Router();
 
@@ -19,6 +20,8 @@ router
   )
   .get("/", userValidation.getUsers, userController.getUsers)
   .get("/me", userController.getMyProfile)
+  .get("/chats/", verifyUser, userController.getChatsController)
+
   .get("/:id", userValidation.getUserById, userController.getUserById);
 
 export default router;
