@@ -8,3 +8,8 @@ export interface loginUserDto {
   email: string;
   password: string;
 }
+
+export interface searchUser {
+  page?: string;
+  search?: string;
+}

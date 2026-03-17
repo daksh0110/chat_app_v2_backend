@@ -1,4 +1,4 @@
-import { body } from "express-validator";
+import { body, header, param, query } from "express-validator";
 
 const createUserValidator = [
   body("name")
@@ -42,8 +42,32 @@ const googleAuthValidation = [
   body("token").notEmpty().withMessage("token is required").bail(),
 ];
 
+export const getUsers = [
+  query("search").optional().isString().withMessage("Search must be a string"),
+
+  query("page")
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage("Page must be a positive integer"),
+];
+
+export const getUserById = [
+  param("id").isMongoId().withMessage("Invalid user id"),
+];
+
+export const getMyProfile = [
+  header("authorization")
+    .notEmpty()
+    .withMessage("Authorization header is required")
+    .matches(/^Bearer\s.+$/)
+    .withMessage("Authorization must be in 'Bearer <token>' format"),
+];
+
 export const userValidation = {
   createUserValidator,
   loginUserValidator,
   googleAuthValidation,
+  getUsers,
+  getMyProfile,
+  getUserById,
 };
