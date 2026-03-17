@@ -160,22 +160,21 @@ const getChatsService = async (id: string) => {
         foreignField: "chat_id",
         as: "messages",
         pipeline: [
-          { $sort: { createdAt: -1 } },
+          { $sort: { createdAt: 1 } },
           {
             $project: {
-              _id: 1,
+              id: "$_id",
               chat_id: 1,
               message: 1,
               sender_id: 1,
               status: 1,
-              createdAt: 1,
+              created_at: "$createdAt",
               is_read: { $eq: ["$status", MessageStatus.READ] },
             },
           },
         ],
       },
     },
-
     { $unwind: "$chatgroup" },
 
     {
@@ -184,7 +183,7 @@ const getChatsService = async (id: string) => {
         user_id: "$chatgroup.users._id",
         name: "$chatgroup.users.name",
         last_message: { $arrayElemAt: ["$messages.message", 0] },
-        last_message_time: { $arrayElemAt: ["$messages.createdAt", 0] },
+        last_message_time: { $arrayElemAt: ["$messages.created_at", 0] },
         messages: 1,
         un_read_count: {
           $size: {
@@ -206,27 +205,22 @@ const getChatsService = async (id: string) => {
 
   const chats = await ChatMemberModel.aggregate(pipeline);
 
-  // Flatten messages for Drift sync
   const messages: any[] = [];
 
   chats.forEach((chat) => {
     chat.messages.forEach((msg: any) => {
       messages.push({
-        ...msg,
+        id: msg.id,
         chat_id: chat.chat_id,
+        message: msg.message,
+        sender_id: msg.sender_id,
+        created_at: msg.created_at?.getTime?.() ?? msg.created_at,
       });
     });
   });
 
   return {
-    chats: chats.map((chat) => ({
-      chat_id: chat.chat_id,
-      user_id: chat.user_id,
-      name: chat.name,
-      last_message: chat.last_message,
-      last_message_time: chat.last_message_time,
-      un_read_count: chat.un_read_count,
-    })),
+    chats,
     messages,
   };
 };
