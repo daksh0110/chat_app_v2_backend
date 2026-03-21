@@ -160,6 +160,7 @@ const getChatsService = async (id: string) => {
         foreignField: "chat_id",
         as: "messages",
         pipeline: [
+          { $match: { status: MessageStatus.SENT } },
           { $sort: { createdAt: 1 } },
           {
             $project: {
