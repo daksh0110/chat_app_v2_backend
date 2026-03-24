@@ -10,11 +10,6 @@ export const sendMessageSocket = (socket: Socket, userId: string) => {
       let chatId = chat_id;
 
       if (!chatId) {
-        const existingChat = await ChatMemberModel.findOne({
-          user_id: userId,
-          is_active: true,
-        });
-
         let chat = await ChatMemberModel.findOne({
           user_id: receiver_id,
           is_active: true,

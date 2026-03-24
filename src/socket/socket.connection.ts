@@ -7,6 +7,8 @@ import { checkUserStatus } from "./user_status_check";
 import { messageDelivered } from "./message_delivered";
 import { messageRead } from "./message_read";
 import { syncChats } from "./chats_sync";
+import { messageTyping } from "./message_typing";
+import { messageTypingStop } from "./message_typing_stop";
 
 export const server = http.createServer(app);
 
@@ -45,6 +47,8 @@ const socketConnection = () => {
       messageDelivered(socket);
       messageRead(socket);
       syncChats(socket, userId);
+      messageTyping(socket, userId);
+      messageTypingStop(socket, userId);
     } catch (error) {
       console.log("❌ Invalid token");
       socket.disconnect();
