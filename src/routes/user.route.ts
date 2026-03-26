@@ -18,7 +18,7 @@ router
     userValidation.googleAuthValidation,
     userController.googleAuth,
   )
-  .get("/", userValidation.getUsers, userController.getUsers)
+  .get("/", verifyUser, userValidation.getUsers, userController.getUsers)
   .get("/me", userController.getMyProfile)
   .get("/chats/", verifyUser, userController.getChatsController)
 

@@ -25,7 +25,8 @@ const googleAuth = asyncHandler(async (req: Request, res: Response) => {
 
 const getUsers = asyncHandler(async (req: Request, res: Response) => {
   const data = req.query;
-  const response = await userService.getUsers(data);
+  const user = (req as any).user as IUser;
+  const response = await userService.getUsers(data, user._id.toString());
   createResponse(res, 200, "User Fetched sucessfuly", response);
 });
 

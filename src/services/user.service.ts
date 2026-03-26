@@ -69,14 +69,16 @@ const googleauth = async (data: { token: string }) => {
   return { name, email, newUser: true, accessToken: null };
 };
 
-const getUsers = async (data: searchUser) => {
+const getUsers = async (data: searchUser, userId: string) => {
   const page = parseInt(data.page || "1");
   const search = data.search || "";
 
   const limit = 10;
   const skip = (page - 1) * limit;
 
-  const filter: QueryFilter<IUser> = {};
+  const filter: QueryFilter<IUser> = {
+    _id: { $ne: userId },
+  };
 
   if (search) {
     filter.$or = [
