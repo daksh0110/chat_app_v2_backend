@@ -9,6 +9,7 @@ import { messageRead } from "./message_read";
 import { syncChats } from "./chats_sync";
 import { messageTyping } from "./message_typing";
 import { messageTypingStop } from "./message_typing_stop";
+import { ChatMemberModel } from "../models/chat_group_member.modal";
 
 export const server = http.createServer(app);
 
@@ -17,7 +18,7 @@ export const io = new Server(server);
 export const onlineUsers = new Map<string, string>();
 
 const socketConnection = () => {
-  io.on("connection", (socket: Socket) => {
+  io.on("connection", async (socket: Socket) => {
     try {
       const token = socket.handshake.auth?.token;
 
@@ -29,8 +30,13 @@ const socketConnection = () => {
       const user = verifyToken(token);
       const userId = user.userId;
       socket.data.userId = userId;
-
       socket.join(userId);
+      const userChatIds = await ChatMemberModel.find({
+        user_id: userId,
+      }).select("chat_id");
+      for (const chatid of userChatIds) {
+        if (chatid && chatid.chat_id) socket.join(chatid.chat_id.toString());
+      }
       onlineUsers.set(userId, socket.id);
       socket.broadcast.emit("user_online", { userId });
 

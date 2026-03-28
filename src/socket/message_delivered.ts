@@ -2,7 +2,7 @@ import { Socket } from "socket.io";
 import { MessageModel, MessageStatus } from "../models/message.modal";
 
 export const messageDelivered = (socket: Socket) => {
-  socket.on("message_delivered", async ({ message_id, sender_id }) => {
+  socket.on("message_delivered", async ({ message_id, chat_id }) => {
     try {
       const message = await MessageModel.findById(message_id);
 
@@ -18,8 +18,9 @@ export const messageDelivered = (socket: Socket) => {
       message.status = MessageStatus.DELIVERED;
       await message.save();
 
-      socket.to(sender_id).emit("message_delivered", {
+      socket.to(chat_id).emit("message_delivered", {
         message_id,
+        chat_id
       });
     } catch (error) {
       console.error("message_delivered error:", error);

@@ -7,7 +7,7 @@ export const syncChats = async (socket: Socket, userId: string) => {
 
       for (const msg of chats.messages) {
         socket.emit("receive_message", {
-          id: msg.id.toString(),
+          message_id: msg.id.toString(),
           chat_id: msg.chat_id,
           message: msg.message,
           sender_id: msg.sender_id.toString(),

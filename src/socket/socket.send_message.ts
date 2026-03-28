@@ -2,6 +2,7 @@ import { Socket } from "socket.io";
 import { MessageModel } from "../models/message.modal";
 import { ChatMemberModel } from "../models/chat_group_member.modal";
 import { CHAT_TYPE, ChatGroupModel } from "../models/chat_group.modal";
+import { io } from "./socket.connection";
 export const sendMessageSocket = (socket: Socket, userId: string) => {
   socket.on("send_message", async (data, callback) => {
     try {
@@ -34,9 +35,18 @@ export const sendMessageSocket = (socket: Socket, userId: string) => {
           ]);
 
           chatId = newChat._id;
+
+          io.to(receiver_id).emit("new_chat", {
+            chat_id: chatId.toString(),
+          });
         } else {
           chatId = chat.chat_id;
         }
+      }
+
+      io.in(userId).socketsJoin(chatId.toString());
+      if (receiver_id) {
+        io.in(receiver_id).socketsJoin(chatId.toString());
       }
 
       const messageDb = await MessageModel.create({
@@ -55,12 +65,10 @@ export const sendMessageSocket = (socket: Socket, userId: string) => {
       };
 
       if (callback) {
-        callback(payload);
+        callback?.(payload);
       }
 
-      socket.emit("receive_message", payload);
-
-      socket.to(receiver_id).emit("receive_message", payload);
+      io.to(chatId.toString()).emit("receive_message", payload);
     } catch (error) {
       console.error("Send message error:", error);
 
