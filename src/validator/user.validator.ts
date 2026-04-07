@@ -63,6 +63,35 @@ export const getMyProfile = [
     .withMessage("Authorization must be in 'Bearer <token>' format"),
 ];
 
+export const emailValidation = [
+  body("email")
+    .notEmpty()
+    .withMessage("Email is required")
+    .bail()
+    .isEmail()
+    .withMessage("Invalid email format"),
+];
+
+export const verifyOtpValidation = [
+  body("reset_token").notEmpty().withMessage("reset token is required").bail(),
+  body("otp")
+    .notEmpty()
+    .withMessage("OTP is required")
+    .isLength({ min: 4, max: 4 }),
+];
+
+export const changePasswordValidation = [
+  body("reset_token").notEmpty().withMessage("Reset token is required").bail(),
+
+  body("new_password")
+    .notEmpty()
+    .withMessage("New password is required")
+    .bail()
+    .matches(/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/)
+    .withMessage(
+      "Password must be at least 8 characters and include uppercase, lowercase, number, and special character",
+    ),
+];
 export const userValidation = {
   createUserValidator,
   loginUserValidator,
@@ -70,4 +99,7 @@ export const userValidation = {
   getUsers,
   getMyProfile,
   getUserById,
+  emailValidation,
+  verifyOtpValidation,
+  changePasswordValidation,
 };

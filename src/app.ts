@@ -5,6 +5,8 @@ import { swaggerSpec } from "./config/swagger";
 import userRoutes from "./routes/user.route";
 import { errorHandler } from "./middleware/error.middleware";
 import { loggerMiddleware } from "./middleware/logger.middleware";
+import dotenv from "dotenv";
+dotenv.config();
 
 const app = express();
 app.use(loggerMiddleware);

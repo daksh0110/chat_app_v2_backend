@@ -53,6 +53,35 @@ const getChatsController = asyncHandler(async (req: Request, res: Response) => {
   createResponse(res, 200, "chats fetched successfully", response);
 });
 
+const sendOtpController = asyncHandler(async (req: Request, res: Response) => {
+  const { email } = req.body;
+
+  const response = await userService.sendOtpService(email);
+  console.log(response);
+  createResponse(res, 200, "OTP sent successfully", response);
+});
+
+const verifyOtpController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { reset_token, otp } = req.body;
+
+    const response = await userService.verifyOtpService({ otp, reset_token });
+    createResponse(res, 200, "OTP verified successfully", response);
+  },
+);
+
+const changePasswordController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { reset_token, new_password } = req.body;
+
+    await userService.changePasswordService({
+      reset_token,
+      new_password,
+    });
+    createResponse(res, 200, "Password changed successfully", null);
+  },
+);
+
 export const userController = {
   createUser,
   loginUser,
@@ -61,4 +90,7 @@ export const userController = {
   getMyProfile,
   getUserById,
   getChatsController,
+  sendOtpController,
+  verifyOtpController,
+  changePasswordController,
 };

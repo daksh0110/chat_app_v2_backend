@@ -21,7 +21,21 @@ router
   .get("/", verifyUser, userValidation.getUsers, userController.getUsers)
   .get("/me", userController.getMyProfile)
   .get("/chats/", verifyUser, userController.getChatsController)
-
+  .post(
+    "/send-otp",
+    userValidation.emailValidation,
+    userController.sendOtpController,
+  )
+  .post(
+    "/verify-otp",
+    userValidation.verifyOtpValidation,
+    userController.verifyOtpController,
+  )
+  .patch(
+    "change-password",
+    userValidation.changePasswordValidation,
+    userController.changePasswordController,
+  )
   .get("/:id", userValidation.getUserById, userController.getUserById);
 
 export default router;

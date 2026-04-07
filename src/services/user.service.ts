@@ -7,6 +7,9 @@ import { verifyGoogleToken } from "../util/google";
 import mongoose, { PipelineStage, QueryFilter, Types } from "mongoose";
 import { ChatMemberModel } from "../models/chat_group_member.modal";
 import { MessageStatus } from "../models/message.modal";
+import { emailService } from "./email.service";
+import crypto from "crypto";
+import { PasswordResetModel } from "../models/password_reset_modal";
 
 const createUser = async (data: CreateUserDto) => {
   try {
@@ -227,6 +230,182 @@ const getChatsService = async (id: string) => {
     messages,
   };
 };
+
+export const sendOtpService = async (email: string) => {
+  const user = await UserModel.findOne({ email });
+
+  if (!user) {
+    throw createHttpError(400, {
+      message: "User with this email does not exist",
+    });
+  }
+
+  const existing = await PasswordResetModel.findOne({
+    user_id: user._id,
+  });
+
+  const now = new Date();
+
+  if (existing) {
+    const diff =
+      now.getTime() - new Date(existing.otp_last_request_time).getTime();
+
+    if (diff < 60 * 1000) {
+      throw createHttpError(429, {
+        message: "Please wait before requesting another OTP",
+      });
+    }
+
+    const windowDiff =
+      now.getTime() - new Date(existing.otp_last_request_time).getTime();
+
+    if (windowDiff < 60 * 60 * 1000) {
+      if (existing.otp_request_count >= 5) {
+        throw createHttpError(429, {
+          message: "Too many OTP requests. Try again later.",
+        });
+      }
+
+      existing.otp_request_count += 1;
+    } else {
+      existing.otp_request_count = 1;
+    }
+
+    await PasswordResetModel.deleteOne({ _id: existing._id });
+  }
+
+  const otp = Math.floor(1000 + Math.random() * 9000).toString();
+
+  const otp_hash = encryptpassword(otp);
+
+  const reset_token = crypto.randomBytes(32).toString("hex");
+
+  await PasswordResetModel.create({
+    user_id: user._id,
+    reset_token,
+    otp_hash,
+    attempts: 0,
+    is_verified: false,
+    otp_request_count: existing ? existing.otp_request_count : 1,
+    otp_last_request_time: now,
+    expires_at: new Date(Date.now() + 5 * 60 * 1000),
+  });
+
+  if (process.env.IS_LOCAL === "true") {
+    console.log("🔐 OTP (DEV ONLY):", otp);
+  } else {
+    await emailService.changePasswordEmail({
+      email,
+      otp,
+    });
+  }
+
+  return {
+    reset_token,
+  };
+};
+
+export const verifyOtpService = async ({
+  reset_token,
+  otp,
+}: {
+  reset_token: string;
+  otp: string;
+}) => {
+  const session = await PasswordResetModel.findOne({ reset_token });
+
+  if (!session) {
+    throw createHttpError(400, {
+      message: "Invalid or expired password reset session",
+    });
+  }
+
+  if (session.expires_at < new Date()) {
+    await PasswordResetModel.deleteOne({ _id: session._id });
+
+    throw createHttpError(410, {
+      message: "OTP has expired. Please request a new one.",
+    });
+  }
+
+  if (session.attempts >= 5) {
+    await PasswordResetModel.deleteOne({ _id: session._id });
+
+    throw createHttpError(429, {
+      message: "Too many incorrect attempts. Please request a new OTP.",
+    });
+  }
+  console.log(otp, session.otp_hash);
+  const isMatch = await comparePassword({
+    dbPassword: session.otp_hash,
+    userPassword: otp,
+  });
+
+  if (!isMatch) {
+    session.attempts += 1;
+    await session.save();
+
+    throw createHttpError(400, {
+      message: "Invalid OTP",
+      remaining_attempts: 5 - session.attempts,
+    });
+  }
+
+  session.is_verified = true;
+  session.attempts = 0;
+  await session.save();
+
+  return;
+};
+
+export const changePasswordService = async ({
+  reset_token,
+  new_password,
+}: {
+  reset_token: string;
+  new_password: string;
+}) => {
+  const session = await PasswordResetModel.findOne({ reset_token }).lean();
+
+  if (!session) {
+    throw createHttpError(404, {
+      message: "Invalid or expired password reset session",
+    });
+  }
+
+  const invalidateSession = async () => {
+    await PasswordResetModel.deleteOne({ _id: session._id });
+  };
+
+  if (session.expires_at < new Date()) {
+    await invalidateSession();
+    throw createHttpError(410, {
+      message: "Session has expired, please start again",
+    });
+  }
+
+  if (!session.is_verified) {
+    await invalidateSession();
+    throw createHttpError(400, {
+      message: "OTP verification required",
+    });
+  }
+
+  const user = await UserModel.findById(session.user_id);
+
+  if (!user) {
+    await invalidateSession();
+    throw createHttpError(404, {
+      message: "User not found",
+    });
+  }
+
+  user.password = encryptpassword(new_password);
+  await user.save();
+
+  await invalidateSession();
+  return;
+};
 export const userService = {
   createUser,
   loginUser,
@@ -235,4 +414,7 @@ export const userService = {
   getMyProfile,
   getUserById,
   getChatsService,
+  sendOtpService,
+  verifyOtpService,
+  changePasswordService,
 };
