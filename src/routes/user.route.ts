@@ -32,7 +32,7 @@ router
     userController.verifyOtpController,
   )
   .patch(
-    "change-password",
+    "/change-password",
     userValidation.changePasswordValidation,
     userController.changePasswordController,
   )
