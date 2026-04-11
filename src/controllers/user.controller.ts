@@ -102,6 +102,16 @@ const changePasswordController = asyncHandler(
   },
 );
 
+const updateUser = asyncHandler(async (req: Request, res: Response) => {
+  const user = (req as any).user as IUser;
+  const data = req.body;
+  const response = await userService.updateUserService(
+    user._id.toString(),
+    data,
+  );
+  createResponse(res, 200, "User updated successfully", response);
+});
+
 export const userController = {
   createUser,
   loginUser,
@@ -115,4 +125,5 @@ export const userController = {
   changePasswordController,
   verifyEmailController,
   sendEmailVerificationOtpController,
+  updateUser,
 };

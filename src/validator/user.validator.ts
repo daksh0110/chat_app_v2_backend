@@ -109,6 +109,18 @@ export const sendEmailVerificationOtpValidation = [
     .isEmail()
     .withMessage("Invalid email format"),
 ];
+
+export const updateUserValidator = [
+  body("bio")
+    .optional()
+    .isLength({ max: 200 })
+    .withMessage("Bio must be at most 200 characters"),
+  body("profile_picture")
+    .optional()
+    .isURL()
+    .withMessage("Invalid profile picture URL"),
+];
+
 export const userValidation = {
   createUserValidator,
   loginUserValidator,
@@ -121,4 +133,5 @@ export const userValidation = {
   changePasswordValidation,
   verifyEmailOtpValidation,
   sendEmailVerificationOtpValidation,
+  updateUserValidator,
 };

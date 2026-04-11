@@ -25,6 +25,12 @@ router
     userController.verifyEmailController,
   )
 
+  .patch(
+    "/update-profile",
+    verifyUser,
+    userValidation.updateUserValidator,
+    userController.updateUser,
+  )
   .post("/login", userValidation.loginUserValidator, userController.loginUser)
   .post(
     "/google/auth",

@@ -208,7 +208,7 @@ const getMyProfile = async (token: string) => {
   }
 
   const user = await UserModel.findById(userInfo.userId)
-    .select("name email _id")
+    .select("name email _id bio profile_picture")
     .lean();
 
   return user;
@@ -584,6 +584,13 @@ export const changePasswordService = async ({
   await invalidateSession();
   return;
 };
+
+const updateUserService = async (userId: string, data: any) => {
+  await UserModel.findByIdAndUpdate(userId, {
+    $set: data,
+  });
+};
+
 export const userService = {
   createUser,
   loginUser,
@@ -597,4 +604,5 @@ export const userService = {
   changePasswordService,
   verifyEmailOtpService,
   sendEmailVerificationOtpService,
+  updateUserService,
 };

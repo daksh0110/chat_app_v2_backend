@@ -7,6 +7,8 @@ export interface IUser {
   password: string;
   is_verified: boolean;
   is_activated: boolean;
+  bio: string;
+  profile_picture: string;
 }
 
 const userSchema = new Schema<IUser>(
@@ -16,6 +18,8 @@ const userSchema = new Schema<IUser>(
     password: { type: String, required: true },
     is_verified: { type: Boolean, required: false, default: false },
     is_activated: { type: Boolean, required: false, default: false },
+    bio: { type: String, required: false, default: "" },
+    profile_picture: { type: String, required: false, default: "" },
   },
   {
     timestamps: {
