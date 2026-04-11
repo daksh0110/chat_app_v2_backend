@@ -92,6 +92,23 @@ export const changePasswordValidation = [
       "Password must be at least 8 characters and include uppercase, lowercase, number, and special character",
     ),
 ];
+
+export const verifyEmailOtpValidation = [
+  body("reset_token").notEmpty().withMessage("reset token is required").bail(),
+  body("otp")
+    .notEmpty()
+    .withMessage("OTP is required")
+    .isLength({ min: 4, max: 4 }),
+];
+
+export const sendEmailVerificationOtpValidation = [
+  body("email")
+    .notEmpty()
+    .withMessage("Email is required")
+    .bail()
+    .isEmail()
+    .withMessage("Invalid email format"),
+];
 export const userValidation = {
   createUserValidator,
   loginUserValidator,
@@ -102,4 +119,6 @@ export const userValidation = {
   emailValidation,
   verifyOtpValidation,
   changePasswordValidation,
+  verifyEmailOtpValidation,
+  sendEmailVerificationOtpValidation,
 };

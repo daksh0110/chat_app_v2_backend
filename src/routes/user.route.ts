@@ -12,6 +12,19 @@ router
     validation(userValidation.createUserValidator),
     userController.createUser,
   )
+
+  .post(
+    "/send-email-verification-otp",
+    validation(userValidation.sendEmailVerificationOtpValidation),
+    userController.sendEmailVerificationOtpController,
+  )
+
+  .post(
+    "/verify-email-otp",
+    userValidation.verifyEmailOtpValidation,
+    userController.verifyEmailController,
+  )
+
   .post("/login", userValidation.loginUserValidator, userController.loginUser)
   .post(
     "/google/auth",

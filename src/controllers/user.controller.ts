@@ -8,8 +8,19 @@ import { IUser } from "../models/user.model";
 const createUser = asyncHandler(async (req: Request, res: Response) => {
   const data = req.body;
   const response = await userService.createUser(data);
-  createResponse(res, 200, "User Created Successfully", response);
+  createResponse(res, 200, "User Registration Started Successfully", response);
 });
+
+const verifyEmailController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { verification_token, otp } = req.body;
+    const response = await userService.verifyEmailOtpService({
+      email_verification_token: verification_token,
+      otp,
+    });
+    createResponse(res, 200, "OTP Verified Successfully", response);
+  },
+);
 
 const loginUser = asyncHandler(async (req: Request, res: Response) => {
   const data = req.body;
@@ -70,6 +81,15 @@ const verifyOtpController = asyncHandler(
   },
 );
 
+const sendEmailVerificationOtpController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { email } = req.body;
+
+    const response = await userService.sendEmailVerificationOtpService(email);
+    createResponse(res, 200, "OTP sent successfully", response);
+  },
+);
+
 const changePasswordController = asyncHandler(
   async (req: Request, res: Response) => {
     const { reset_token, new_password } = req.body;
@@ -93,4 +113,6 @@ export const userController = {
   sendOtpController,
   verifyOtpController,
   changePasswordController,
+  verifyEmailController,
+  sendEmailVerificationOtpController,
 };
