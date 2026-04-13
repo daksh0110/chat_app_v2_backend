@@ -31,7 +31,7 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
 const googleAuth = asyncHandler(async (req: Request, res: Response) => {
   const data = req.body;
   const response = await userService.googleauth(data);
-  createResponse(res, 200, "Login Successfully", response);
+  createResponse(res, 200, "Token Verified Successfully", response);
 });
 
 const getUsers = asyncHandler(async (req: Request, res: Response) => {
@@ -105,12 +105,21 @@ const changePasswordController = asyncHandler(
 const updateUser = asyncHandler(async (req: Request, res: Response) => {
   const user = (req as any).user as IUser;
   const data = req.body;
+
   const response = await userService.updateUserService(
     user._id.toString(),
     data,
   );
   createResponse(res, 200, "User updated successfully", response);
 });
+
+export const googleAuthSetPasswordController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const data = req.body;
+    const response = await userService.googleAuthSetPassword(data);
+    createResponse(res, 200, "Password set successfully", response);
+  },
+);
 
 export const userController = {
   createUser,
@@ -126,4 +135,5 @@ export const userController = {
   verifyEmailController,
   sendEmailVerificationOtpController,
   updateUser,
+  googleAuthSetPasswordController,
 };

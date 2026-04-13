@@ -121,6 +121,12 @@ export const updateUserValidator = [
     .withMessage("Invalid profile picture URL"),
 ];
 
+export const googleAuthSetPasswordValidation = [
+  body("token").notEmpty().withMessage("token is required").bail(),
+  body("password").notEmpty().withMessage("password is required").bail(),
+  body("id").notEmpty().withMessage("id is required").bail(),
+];
+
 export const userValidation = {
   createUserValidator,
   loginUserValidator,
@@ -134,4 +140,5 @@ export const userValidation = {
   verifyEmailOtpValidation,
   sendEmailVerificationOtpValidation,
   updateUserValidator,
+  googleAuthSetPasswordValidation,
 };

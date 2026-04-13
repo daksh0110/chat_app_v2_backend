@@ -145,29 +145,82 @@ const loginUser = async (data: loginUserDto) => {
     throw createHttpError(400, { message: "Invalid credentials" });
   }
 
+  if (user.is_verified === false) {
+    const otp = Math.floor(1000 + Math.random() * 9000).toString();
+    const otpHash = encryptpassword(otp);
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+
+    await EmailVerificationModal.deleteMany({ user_id: user._id });
+
+    await EmailVerificationModal.create({
+      user_id: user._id,
+      verification_token: verificationToken,
+      otp_hash: otpHash,
+      expires_at: expiresAt,
+      otp_last_request_time: new Date(),
+      otp_request_count: 1,
+    });
+
+    if (process.env.IS_LOCAL === "true") {
+      console.log("🔐 OTP (DEV ONLY):", otp);
+    } else {
+      await emailService.sendVerificationEmail({
+        email: user.email,
+        otp,
+      });
+    }
+
+    return {
+      message: "Otp Sent Successfully",
+      skip_otp: false,
+      email: user.email,
+      verification_token: verificationToken,
+    };
+  }
+
   const accessToken = createToken(user._id.toString());
 
   return {
     accessToken,
+    skip_otp: true,
   };
 };
 
 const googleauth = async (data: { token: string }) => {
-  const info = await verifyGoogleToken(data.token);
-  if (!info) {
-    throw createHttpError(400, { message: "Invalid accessToken" });
-  }
-  const { email, name } = info;
+  try {
+    const info = await verifyGoogleToken(data.token);
+    if (!info) {
+      throw createHttpError(400, { message: "Invalid accessToken" });
+    }
 
-  const user = await UserModel.findOne({
-    email: email,
-  });
-  if (user) {
-    const accessToken = createToken(user._id.toString());
-    return { accessToken };
-  }
+    const { email, name, picture } = info;
 
-  return { name, email, newUser: true, accessToken: null };
+    const user = await UserModel.findOne({
+      email: email,
+    });
+    if (user) {
+      const accessToken = createToken(user._id.toString());
+      return { accessToken };
+    }
+    const newUser = await UserModel.create({
+      email,
+      name,
+      is_verified: false,
+      profile_picture: picture,
+    });
+    return {
+      name,
+      email,
+      newUser: true,
+      accessToken: null,
+      id: newUser._id.toString(),
+    };
+  } catch (error) {
+    console.error("Error in googleauth service:", error);
+    throw createHttpError(500, { message: "Internal Server Error" });
+  }
 };
 
 const getUsers = async (data: searchUser, userId: string) => {
@@ -591,6 +644,41 @@ const updateUserService = async (userId: string, data: any) => {
   });
 };
 
+const googleAuthSetPassword = async ({
+  token,
+  password,
+  id,
+}: {
+  token: string;
+  password: string;
+  id: string;
+}) => {
+  const info = await verifyGoogleToken(token);
+  if (!info) {
+    throw createHttpError(400, { message: "Invalid accessToken" });
+  }
+  const { email, name } = info;
+
+  const user = await UserModel.findOne({
+    email: email,
+    _id: id,
+  });
+
+  if (!user) {
+    throw createHttpError(400, {
+      message: "User with this email does not exist",
+    });
+  }
+  const encryptedPassword = encryptpassword(password);
+  user.password = encryptedPassword;
+  user.is_verified = true;
+  await user.save();
+
+  const accessToken = createToken(user._id.toString());
+
+  return { accessToken };
+};
+
 export const userService = {
   createUser,
   loginUser,
@@ -605,4 +693,5 @@ export const userService = {
   verifyEmailOtpService,
   sendEmailVerificationOtpService,
   updateUserService,
+  googleAuthSetPassword,
 };

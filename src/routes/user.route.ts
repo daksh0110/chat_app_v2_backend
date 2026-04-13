@@ -33,9 +33,15 @@ router
   )
   .post("/login", userValidation.loginUserValidator, userController.loginUser)
   .post(
-    "/google/auth",
+    "/google/verify-auth-token",
     userValidation.googleAuthValidation,
     userController.googleAuth,
+  )
+
+  .post(
+    "/google/auth/set-password",
+    userValidation.googleAuthSetPasswordValidation,
+    userController.googleAuthSetPasswordController,
   )
   .get("/", verifyUser, userValidation.getUsers, userController.getUsers)
   .get("/me", userController.getMyProfile)

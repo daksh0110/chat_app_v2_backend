@@ -12,7 +12,6 @@ export const verifyUser = async (
   if (!authHeader) {
     throw createHttpError(401, { message: "Authorization token is required" });
   }
-
   const token = authHeader.split(" ")[1];
   const userInfo = verifyToken(token);
   if (!userInfo.userId) {
