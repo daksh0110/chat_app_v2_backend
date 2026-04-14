@@ -245,7 +245,7 @@ const getUsers = async (data: searchUser, userId: string) => {
     .skip(skip)
     .limit(limit)
     .sort({ createdAt: -1 })
-    .select("name email")
+    .select("name email _id bio profile_picture")
     .lean();
   const processedUsers = users.map((user) => ({
     ...user,
@@ -272,12 +272,13 @@ const getUserById = async (id: string) => {
     throw createHttpError(400, { message: "Invalid user id" });
   }
 
-  const user = await UserModel.findById(id).select("name email").lean();
+  const user = await UserModel.findById(id)
+    .select("name email _id bio profile_picture")
+    .lean();
 
   if (!user) {
     throw createHttpError(404, { message: "User not found" });
   }
-
   return {
     ...user,
     subtitle: user.email,
