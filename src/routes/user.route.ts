@@ -12,16 +12,55 @@ router
     validation(userValidation.createUserValidator),
     userController.createUser,
   )
+
+  .post(
+    "/send-email-verification-otp",
+    validation(userValidation.sendEmailVerificationOtpValidation),
+    userController.sendEmailVerificationOtpController,
+  )
+
+  .post(
+    "/verify-email-otp",
+    userValidation.verifyEmailOtpValidation,
+    userController.verifyEmailController,
+  )
+
+  .patch(
+    "/update-profile",
+    verifyUser,
+    userValidation.updateUserValidator,
+    userController.updateUser,
+  )
   .post("/login", userValidation.loginUserValidator, userController.loginUser)
   .post(
-    "/google/auth",
+    "/google/verify-auth-token",
     userValidation.googleAuthValidation,
     userController.googleAuth,
+  )
+
+  .post(
+    "/google/auth/set-password",
+    userValidation.googleAuthSetPasswordValidation,
+    userController.googleAuthSetPasswordController,
   )
   .get("/", verifyUser, userValidation.getUsers, userController.getUsers)
   .get("/me", userController.getMyProfile)
   .get("/chats/", verifyUser, userController.getChatsController)
-
+  .post(
+    "/send-otp",
+    userValidation.emailValidation,
+    userController.sendOtpController,
+  )
+  .post(
+    "/verify-otp",
+    userValidation.verifyOtpValidation,
+    userController.verifyOtpController,
+  )
+  .patch(
+    "/change-password",
+    userValidation.changePasswordValidation,
+    userController.changePasswordController,
+  )
   .get("/:id", userValidation.getUserById, userController.getUserById);
 
 export default router;

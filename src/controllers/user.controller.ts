@@ -8,8 +8,19 @@ import { IUser } from "../models/user.model";
 const createUser = asyncHandler(async (req: Request, res: Response) => {
   const data = req.body;
   const response = await userService.createUser(data);
-  createResponse(res, 200, "User Created Successfully", response);
+  createResponse(res, 200, "User Registration Started Successfully", response);
 });
+
+const verifyEmailController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { verification_token, otp } = req.body;
+    const response = await userService.verifyEmailOtpService({
+      email_verification_token: verification_token,
+      otp,
+    });
+    createResponse(res, 200, "OTP Verified Successfully", response);
+  },
+);
 
 const loginUser = asyncHandler(async (req: Request, res: Response) => {
   const data = req.body;
@@ -20,7 +31,7 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
 const googleAuth = asyncHandler(async (req: Request, res: Response) => {
   const data = req.body;
   const response = await userService.googleauth(data);
-  createResponse(res, 200, "Login Successfully", response);
+  createResponse(res, 200, "Token Verified Successfully", response);
 });
 
 const getUsers = asyncHandler(async (req: Request, res: Response) => {
@@ -53,6 +64,63 @@ const getChatsController = asyncHandler(async (req: Request, res: Response) => {
   createResponse(res, 200, "chats fetched successfully", response);
 });
 
+const sendOtpController = asyncHandler(async (req: Request, res: Response) => {
+  const { email } = req.body;
+
+  const response = await userService.sendOtpService(email);
+  console.log(response);
+  createResponse(res, 200, "OTP sent successfully", response);
+});
+
+const verifyOtpController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { reset_token, otp } = req.body;
+
+    const response = await userService.verifyOtpService({ otp, reset_token });
+    createResponse(res, 200, "OTP verified successfully", response);
+  },
+);
+
+const sendEmailVerificationOtpController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { email } = req.body;
+
+    const response = await userService.sendEmailVerificationOtpService(email);
+    createResponse(res, 200, "OTP sent successfully", response);
+  },
+);
+
+const changePasswordController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { reset_token, new_password } = req.body;
+
+    await userService.changePasswordService({
+      reset_token,
+      new_password,
+    });
+    createResponse(res, 200, "Password changed successfully", null);
+  },
+);
+
+const updateUser = asyncHandler(async (req: Request, res: Response) => {
+  const user = (req as any).user as IUser;
+  const data = req.body;
+
+  const response = await userService.updateUserService(
+    user._id.toString(),
+    data,
+  );
+  createResponse(res, 200, "User updated successfully", response);
+});
+
+export const googleAuthSetPasswordController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const data = req.body;
+    const response = await userService.googleAuthSetPassword(data);
+    createResponse(res, 200, "Password set successfully", response);
+  },
+);
+
 export const userController = {
   createUser,
   loginUser,
@@ -61,4 +129,11 @@ export const userController = {
   getMyProfile,
   getUserById,
   getChatsController,
+  sendOtpController,
+  verifyOtpController,
+  changePasswordController,
+  verifyEmailController,
+  sendEmailVerificationOtpController,
+  updateUser,
+  googleAuthSetPasswordController,
 };
