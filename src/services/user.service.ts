@@ -201,8 +201,18 @@ const googleauth = async (data: { token: string }) => {
       email: email,
     });
     if (user) {
-      const accessToken = createToken(user._id.toString());
-      return { accessToken };
+      if (user.password) {
+        const accessToken = createToken(user._id.toString());
+        return { accessToken };
+      } else {
+        return {
+          name,
+          email,
+          newUser: true,
+          accessToken: null,
+          id: user._id.toString(),
+        };
+      }
     }
     const newUser = await UserModel.create({
       email,
