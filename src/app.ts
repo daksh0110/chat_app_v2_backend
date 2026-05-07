@@ -3,6 +3,7 @@ import cors from "cors";
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger";
 import userRoutes from "./routes/user.route";
+import chatRoutes from "./routes/chats.route";
 import { errorHandler } from "./middleware/error.middleware";
 import { loggerMiddleware } from "./middleware/logger.middleware";
 import dotenv from "dotenv";
@@ -18,6 +19,8 @@ app.get("/", (req, res) => {
   res.send("API is running...");
 });
 app.use("/api/users", userRoutes);
+app.use("/api/chats", chatRoutes);
+
 app.use(errorHandler);
 
 export default app;

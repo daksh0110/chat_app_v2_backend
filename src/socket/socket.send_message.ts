@@ -67,6 +67,7 @@ export const sendMessageSocket = (socket: Socket, userId: string) => {
       if (callback) {
         callback?.(payload);
       }
+      const socketsInRoom = await io.in(chatId.toString()).fetchSockets();
 
       io.to(chatId.toString()).emit("receive_message", payload);
     } catch (error) {
