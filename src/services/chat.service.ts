@@ -1,7 +1,7 @@
 import createHttpError from "http-errors";
 import { verifyToken } from "../util/jwt";
 import mongoose from "mongoose";
-import { ChatGroupModel } from "../models/chat_group.modal";
+import { CHAT_TYPE, ChatGroupModel } from "../models/chat_group.modal";
 import { ChatMemberModel } from "../models/chat_group_member.modal";
 
 const getChatById = async (id: string, userId: string) => {
@@ -34,24 +34,36 @@ const getChatById = async (id: string, userId: string) => {
   if (!group) {
     throw createHttpError(404, { message: "Group not found" });
   }
-  const groupData = {
+
+  const participantsData = participants.map((p) => ({
+    user_id: p.user_id._id.toString(),
+    role: p.role,
+    name: p.user_id.name,
+    profile_pic_url: p.user_id.profilePic,
+    chat_id: p.chat_id,
+  }));
+
+  const chatData = {
     chat_id: group._id.toString(),
-    name: group.name,
-    profile_pic_url: group.image,
-    description: group.description,
+    name:
+      group.type === CHAT_TYPE.DIRECT
+        ? (participantsData.find((p) => p.user_id !== userId)?.name ?? "")
+        : (group.name ?? ""),
+    profile_pic_url:
+      group.type === CHAT_TYPE.GROUP
+        ? (group.image ?? "")
+        : (participantsData.find((p) => p.user_id !== userId)
+            ?.profile_pic_url ?? ""),
+    description:
+      group.type === CHAT_TYPE.GROUP ? (group.description ?? "") : "",
     type: group.type,
-    participants: participants.map((p) => ({
-      user_id: p._id.toString(),
-      role: p.role,
-      name: p.user_id.name,
-      profile_pic_url: p.user_id.profilePic,
-      chat_id: p.chat_id,
-    })),
+    participants: participantsData,
   };
+
   return {
     success: true,
-    message: "Group chat fetched successfully",
-    ...groupData,
+    message: "Chat Meta data fetched successfully",
+    ...chatData,
   };
 };
 
