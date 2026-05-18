@@ -3,6 +3,8 @@ import { CHAT_TYPE, ChatGroupModel } from "../models/chat_group.modal";
 import { ChatMemberModel, ROLE } from "../models/chat_group_member.modal";
 import { Types } from "mongoose";
 import { io } from "./socket.connection";
+import { createChatEvent } from "../services/event.service";
+import { CHAT_EVENT } from "../models/chat_events_modal";
 
 export const createGroupChat = (socket: Socket, userId: string) => {
   socket.on("create-group", async (data, callback) => {
@@ -65,14 +67,24 @@ export const createGroupChat = (socket: Socket, userId: string) => {
           chat_id: p.chat_id,
         })),
       };
+
+      const eventPayload = await createChatEvent({
+        chat_id: chatId,
+        actor_id: userId,
+        event: CHAT_EVENT.GROUP_CREATED,
+        payload: groupData,
+      });
+
+      const emittedData = { ...groupData, sequence: eventPayload.sequence };
+
       for (const participant of participants) {
         io.in(participant.user_id._id.toString()).socketsJoin(chatId);
       }
-      io.to(userIds.map((id: string) => id)).emit("group-created", groupData);
+      io.to(userIds.map((id: string) => id)).emit("group-created", emittedData);
       callback({
         success: true,
         message: "Group created successfully",
-        ...groupData,
+        ...emittedData,
       });
     } catch (error) {
       console.error(error);

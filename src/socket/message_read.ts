@@ -1,7 +1,8 @@
 import { Socket } from "socket.io";
 import { MessageModel, MessageStatus } from "../models/message.modal";
 import { MessageStatusModel } from "../models/message_status_modal";
-
+import { createChatEvent } from "../services/event.service";
+import { CHAT_EVENT } from "../models/chat_events_modal";
 export const messageRead = (socket: Socket) => {
   socket.on("message_read", async (data) => {
     try {
@@ -22,7 +23,7 @@ export const messageRead = (socket: Socket) => {
       currentStatus.read_at = new Date();
       await currentStatus.save();
 
-      socket.to(chat_id).emit("message_read", {
+      const payload = {
         chat_id,
         message_status: {
           message_id: currentStatus.message_id,
@@ -33,6 +34,19 @@ export const messageRead = (socket: Socket) => {
           created_at: currentStatus.created_at?.getTime() ?? null,
           updated_at: currentStatus.updated_at?.getTime() ?? null,
         },
+      };
+
+      const eventPayload = await createChatEvent({
+        chat_id: chat_id,
+        actor_id: socket.data.userId,
+        event: CHAT_EVENT.MESSAGE_READ,
+        message_id: message_id,
+        payload: payload,
+      });
+
+      socket.to(chat_id).emit("message_read", {
+        ...payload,
+        sequence: eventPayload.sequence,
       });
     } catch (error) {
       console.error("message_read error:", error);

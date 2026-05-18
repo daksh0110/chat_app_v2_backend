@@ -4,15 +4,16 @@ export enum CHAT_EVENT {
   MESSAGE_SENT = "MESSAGE_SENT",
   MESSAGE_DELIVERED = "MESSAGE_DELIVERED",
   MESSAGE_READ = "MESSAGE_READ",
+  GROUP_CREATED = "GROUP_CREATED",
 }
 
 export interface ChatEvent {
   chat_id: Types.ObjectId;
   message_id: Types.ObjectId;
   event: CHAT_EVENT;
-  user_id: Types.ObjectId;
-  synced: boolean;
-  synced_at: Date | null;
+  actor_id: Types.ObjectId;
+  sequence: number;
+  payload: Record<string, any>;
 }
 
 const chatEventSchema = new Schema<ChatEvent>(
@@ -23,24 +24,26 @@ const chatEventSchema = new Schema<ChatEvent>(
     },
     message_id: {
       type: Types.ObjectId,
-      required: true,
     },
     event: {
       type: String,
       enum: Object.values(CHAT_EVENT),
       required: true,
     },
-    user_id: {
+    actor_id: {
       type: Types.ObjectId,
       required: true,
+      ref: "User",
     },
-    synced: {
-      type: Boolean,
-      default: false,
+    sequence: {
+      type: Number,
+      required: true,
+      unique: true,
+      index: true,
     },
-    synced_at: {
-      type: Date,
-      default: null,
+    payload: {
+      type: Schema.Types.Mixed,
+      default: {},
     },
   },
   {
@@ -53,12 +56,16 @@ const chatEventSchema = new Schema<ChatEvent>(
 
 export const ChatEventModel = model<ChatEvent>("ChatEvent", chatEventSchema);
 
-chatEventSchema.index(
-  { synced_at: 1 },
-  {
-    expireAfterSeconds: 60 * 60 * 24,
-    partialFilterExpression: {
-      synced: true,
-    },
-  },
-);
+chatEventSchema.index({
+  sequence: 1,
+});
+
+chatEventSchema.index({
+  chat_id: 1,
+  sequence: 1,
+});
+
+chatEventSchema.index({
+  message_id: 1,
+  event: 1,
+});
