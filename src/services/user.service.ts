@@ -132,7 +132,6 @@ const loginUser = async (data: loginUserDto) => {
   const { email, password } = data;
 
   const user = await UserModel.findOne({ email: email });
-
   if (!user) {
     throw createHttpError(400, { message: "User does not exist" });
   }
@@ -141,6 +140,7 @@ const loginUser = async (data: loginUserDto) => {
     dbPassword: user.password,
     userPassword: password,
   });
+
   if (!isMatch) {
     throw createHttpError(400, { message: "Invalid credentials" });
   }
@@ -179,7 +179,6 @@ const loginUser = async (data: loginUserDto) => {
       verification_token: verificationToken,
     };
   }
-
   const accessToken = createToken(user._id.toString());
 
   return {

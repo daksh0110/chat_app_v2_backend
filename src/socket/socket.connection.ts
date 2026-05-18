@@ -10,6 +10,7 @@ import { syncChats } from "./chats_sync";
 import { messageTyping } from "./message_typing";
 import { messageTypingStop } from "./message_typing_stop";
 import { ChatMemberModel } from "../models/chat_group_member.modal";
+import { createGroupChat } from "./create_group_socket";
 
 export const server = http.createServer(app);
 
@@ -55,6 +56,7 @@ const socketConnection = () => {
       syncChats(socket, userId);
       messageTyping(socket, userId);
       messageTypingStop(socket, userId);
+      createGroupChat(socket, userId);
     } catch (error) {
       console.log("❌ Invalid token");
       socket.disconnect();

@@ -10,6 +10,7 @@ export interface IChatGroup {
   description?: string;
   type: CHAT_TYPE;
   created_by?: Types.ObjectId;
+  image?: string;
 }
 
 const chatGroupSchema = new Schema<IChatGroup>(
@@ -31,6 +32,10 @@ const chatGroupSchema = new Schema<IChatGroup>(
     created_by: {
       type: Schema.Types.ObjectId,
       ref: "User",
+    },
+    image: {
+      type: String,
+      required: false,
     },
   },
   {
