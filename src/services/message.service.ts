@@ -1,7 +1,9 @@
 import { CHAT_TYPE, ChatGroupModel } from "../models/chat_group.modal";
 import { ChatMemberModel } from "../models/chat_group_member.modal";
+import { MediaModel } from "../models/media_modal";
 import { MessageModel, MessageStatus } from "../models/message.modal";
 import { MessageStatusModel } from "../models/message_status_modal";
+import { awsService } from "./aws.service";
 
 const findOrCreateChatId = async (userId: string, receiverId: string) => {
   const myChats = await ChatMemberModel.find({
@@ -50,12 +52,50 @@ const createMessage = async (
   chatId: string,
   message: string,
   tempId?: string,
+  attachments?: MediaModel[],
 ) => {
   const messageDb = await MessageModel.create({
     message,
     sender_id: senderId,
     chat_id: chatId,
   });
+
+  let attachmentPayloads: any[] = [];
+
+  if (attachments?.length) {
+    const medias = await MediaModel.insertMany(
+      attachments.map((a) => ({
+        key: a.key,
+        content_type: a.content_type,
+        actor_id: messageDb._id,
+        actor_type: "message",
+        type: a.type,
+        name: a.name,
+      })),
+    );
+
+    messageDb.media = medias.map((m) => m._id);
+
+    await messageDb.save();
+
+    attachmentPayloads = await Promise.all(
+      medias.map(async (m) => {
+        let url = "";
+        try {
+          url = await awsService.getPresignedUrl(m.key);
+        } catch (e) {
+          console.error("Failed to generate presigned GET url for key:", m.key, e);
+        }
+        return {
+          key: m.key,
+          content_type: m.content_type,
+          type: m.type,
+          name: m.name,
+          url,
+        };
+      })
+    );
+  }
   const chatParticipants = await ChatMemberModel.find({
     chat_id: chatId,
     is_active: true,
@@ -75,6 +115,8 @@ const createMessage = async (
     chat_id: chatId.toString(),
     message: messageDb.message,
     sender_id: messageDb.sender_id.toString(),
+    attachments: attachmentPayloads,
+
     created_at: messageDb.createdAt?.getTime() ?? null,
     message_statuses: messageStatusDocs.map((ms) => ({
       message_id: ms.message_id.toString(),

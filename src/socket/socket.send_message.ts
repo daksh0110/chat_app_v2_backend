@@ -6,7 +6,8 @@ import { CHAT_EVENT } from "../models/chat_events_modal";
 export const sendMessageSocket = (socket: Socket, userId: string) => {
   socket.on("send_message", async (data, callback) => {
     try {
-      const { message, receiver_id, temp_id, chat_id } = data;
+      const { message, receiver_id, temp_id, chat_id, attachments } = data;
+      console.log("Received send_message event with data:", data);
       let chatId = chat_id;
 
       if (!chatId) {
@@ -26,6 +27,7 @@ export const sendMessageSocket = (socket: Socket, userId: string) => {
         chatId,
         message,
         temp_id,
+        attachments,
       );
 
       const eventPayload = await createChatEvent({
@@ -38,7 +40,10 @@ export const sendMessageSocket = (socket: Socket, userId: string) => {
         callback?.({ ...payload, sequence: eventPayload.sequence });
       }
 
-      io.to(chatId.toString()).emit("receive_message", { ...payload, sequence: eventPayload.sequence });
+      io.to(chatId.toString()).emit("receive_message", {
+        ...payload,
+        sequence: eventPayload.sequence,
+      });
     } catch (error) {
       console.error("Send message error:", error);
 

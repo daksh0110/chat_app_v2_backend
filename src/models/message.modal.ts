@@ -1,4 +1,5 @@
 import { model, Schema, Types } from "mongoose";
+import { MediaModel } from "./media_modal";
 
 export enum MessageStatus {
   SENT = "sent",
@@ -14,6 +15,7 @@ export interface IMessage {
   createdAt?: Date;
   updatedAt?: Date;
   status: MessageStatus;
+  media?: Types.ObjectId[];
 }
 
 const messageSchema = new Schema<IMessage>(
@@ -32,13 +34,18 @@ const messageSchema = new Schema<IMessage>(
 
     message: {
       type: String,
-      required: true,
     },
     status: {
       type: String,
       enum: Object.values(MessageStatus),
       default: MessageStatus.SENT,
     },
+    media: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Media",
+      },
+    ],
   },
   {
     timestamps: true,

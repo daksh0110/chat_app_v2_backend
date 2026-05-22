@@ -4,6 +4,7 @@ import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger";
 import userRoutes from "./routes/user.route";
 import chatRoutes from "./routes/chats.route";
+import uploadRoutes from "./routes/upload.route";
 import { errorHandler } from "./middleware/error.middleware";
 import { loggerMiddleware } from "./middleware/logger.middleware";
 import dotenv from "dotenv";
@@ -20,6 +21,7 @@ app.get("/", (req, res) => {
 });
 app.use("/api/users", userRoutes);
 app.use("/api/chats", chatRoutes);
+app.use("/api/upload", uploadRoutes);
 
 app.use(errorHandler);
 
