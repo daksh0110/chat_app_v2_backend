@@ -61,6 +61,13 @@ router
     userValidation.changePasswordValidation,
     userController.changePasswordController,
   )
+  .post(
+    "/fcm-token",
+    verifyUser,
+    validation(userValidation.fcmTokenValidation),
+    userController.updateFcmTokenController,
+  )
   .get("/:id", userValidation.getUserById, userController.getUserById);
+
 
 export default router;
