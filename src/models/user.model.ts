@@ -9,6 +9,7 @@ export interface IUser {
   is_activated: boolean;
   bio: string;
   profile_picture: string;
+  fcm_token?: string;
 }
 
 const userSchema = new Schema<IUser>(
@@ -20,6 +21,7 @@ const userSchema = new Schema<IUser>(
     is_activated: { type: Boolean, required: false, default: false },
     bio: { type: String, required: false, default: "" },
     profile_picture: { type: String, required: false, default: "" },
+    fcm_token: { type: String, required: false, default: null },
   },
   {
     timestamps: {

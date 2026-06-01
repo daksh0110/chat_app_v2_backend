@@ -121,6 +121,15 @@ export const googleAuthSetPasswordController = asyncHandler(
   },
 );
 
+const updateFcmTokenController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const user = (req as any).user as IUser;
+    const { fcm_token } = req.body;
+    await userService.updateFcmTokenService(user._id.toString(), fcm_token);
+    createResponse(res, 200, "FCM token updated successfully", null);
+  },
+);
+
 export const userController = {
   createUser,
   loginUser,
@@ -136,4 +145,5 @@ export const userController = {
   sendEmailVerificationOtpController,
   updateUser,
   googleAuthSetPasswordController,
+  updateFcmTokenController,
 };

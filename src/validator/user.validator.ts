@@ -119,12 +119,26 @@ export const updateUserValidator = [
     .optional()
     .isURL()
     .withMessage("Invalid profile picture URL"),
+  body("fcm_token")
+    .optional()
+    .isString()
+    .withMessage("FCM token must be a string"),
 ];
+
 
 export const googleAuthSetPasswordValidation = [
   body("token").notEmpty().withMessage("token is required").bail(),
   body("password").notEmpty().withMessage("password is required").bail(),
   body("id").notEmpty().withMessage("id is required").bail(),
+];
+
+export const fcmTokenValidation = [
+  body("fcm_token")
+    .notEmpty()
+    .withMessage("FCM token is required")
+    .bail()
+    .isString()
+    .withMessage("FCM token must be a string"),
 ];
 
 export const userValidation = {
@@ -141,4 +155,5 @@ export const userValidation = {
   sendEmailVerificationOtpValidation,
   updateUserValidator,
   googleAuthSetPasswordValidation,
+  fcmTokenValidation,
 };

@@ -654,6 +654,15 @@ const updateUserService = async (userId: string, data: any) => {
   });
 };
 
+const updateFcmTokenService = async (
+  userId: string,
+  fcm_token: string,
+) => {
+  await UserModel.findByIdAndUpdate(userId, {
+    $set: { fcm_token },
+  });
+};
+
 const googleAuthSetPassword = async ({
   token,
   password,
@@ -704,4 +713,5 @@ export const userService = {
   sendEmailVerificationOtpService,
   updateUserService,
   googleAuthSetPassword,
+  updateFcmTokenService,
 };
