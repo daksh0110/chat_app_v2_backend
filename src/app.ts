@@ -17,7 +17,10 @@ app.use(express.json());
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.get("/", (req, res) => {
-  res.send("API is running...");
+  res.status(200).json({
+    success: true,
+    message: "server is running",
+  });
 });
 app.use("/api/users", userRoutes);
 app.use("/api/chats", chatRoutes);

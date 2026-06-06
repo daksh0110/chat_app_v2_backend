@@ -2,6 +2,8 @@ import { Socket } from "socket.io";
 import { UserLastSequenceModel } from "../models/user_last_sequence";
 import { ChatMemberModel } from "../models/chat_group_member.modal";
 import { ChatEventModel, CHAT_EVENT } from "../models/chat_events_modal";
+import { CHAT_TYPE, ChatGroupModel } from "../models/chat_group.modal";
+import { Types } from "mongoose";
 
 export const syncChats = async (socket: Socket, userId: string) => {
   socket.on("chat_sync", async () => {
@@ -39,6 +41,45 @@ export const syncChats = async (socket: Socket, userId: string) => {
         }
       }
 
+      const groups = await ChatGroupModel.find({
+        _id: {
+          $in: chatIds,
+        },
+        type: CHAT_TYPE.GROUP,
+      }).lean();
+
+      for (const group of groups) {
+        const participants = await ChatMemberModel.find({
+          chat_id: group._id,
+          is_active: true,
+        })
+          .populate<{
+            user_id: {
+              _id: Types.ObjectId;
+              name: string;
+              profilePic?: string;
+            };
+          }>("user_id", "name profilePic")
+          .lean();
+
+        const groupData = {
+          chat_id: group._id.toString(),
+          name: group.name,
+          profile_pic_url: group.image,
+          description: group.description,
+          type: group.type,
+          participants: participants.map((p) => ({
+            user_id: p.user_id._id.toString(),
+            role: p.role,
+            name: p.user_id.name,
+            profile_pic_url: p.user_id.profilePic,
+            chat_id: p.chat_id,
+          })),
+        };
+
+        socket.emit("group-sync", groupData);
+      }
+
       console.log(`Synced ${missedEvents.length} events for user ${userId}`);
     } catch (error) {
       console.error("Failed to sync chats:", error);
@@ -55,7 +96,7 @@ export const syncChats = async (socket: Socket, userId: string) => {
         await UserLastSequenceModel.findOneAndUpdate(
           { user_id: userId },
           { $max: { last_sequence: sequence } },
-          { upsert: true }
+          { upsert: true },
         );
       }
     } catch (error) {
