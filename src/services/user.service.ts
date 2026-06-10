@@ -1,6 +1,11 @@
 import createHttpError from "http-errors";
 import { IUser, UserModel } from "../models/user.model";
-import { CreateUserDto, loginUserDto, searchUser } from "../types/user.types";
+import {
+  CreateUserDto,
+  loginUserDto,
+  searchUser,
+  updateProfile,
+} from "../types/user.types";
 import { comparePassword, encryptpassword } from "../util/bcrypt";
 import { createToken, verifyToken } from "../util/jwt";
 import { verifyGoogleToken } from "../util/google";
@@ -11,6 +16,7 @@ import { emailService } from "./email.service";
 import crypto from "crypto";
 import { PasswordResetModel } from "../models/password_reset_modal";
 import { EmailVerificationModal } from "../models/email_verification_modal";
+import { MediaModel } from "../models/media_modal";
 
 const createUser = async (data: CreateUserDto) => {
   try {
@@ -648,16 +654,73 @@ export const changePasswordService = async ({
   return;
 };
 
-const updateUserService = async (userId: string, data: any) => {
-  await UserModel.findByIdAndUpdate(userId, {
-    $set: data,
-  });
+const updateUserService = async (userId: string, data: updateProfile) => {
+  try {
+    const user = await UserModel.findById(userId);
+
+    if (!user) {
+      throw createHttpError(404, {
+        message: "User does not exist",
+      });
+    }
+
+    if (data.media) {
+      let mediaDoc;
+
+      if (user.media) {
+        mediaDoc = await MediaModel.findByIdAndUpdate(
+          user.media,
+          {
+            key: data.media.key,
+            name: data.media.name,
+            content_type: data.media.content_type,
+            type: data.media.type,
+            actor_id: user._id,
+          },
+          { new: true },
+        );
+      } else {
+        mediaDoc = await MediaModel.create({
+          key: data.media.key,
+          name: data.media.name,
+          content_type: data.media.content_type,
+          type: data.media.type,
+          actor_id: user._id,
+        });
+
+        data.media = undefined;
+
+        await UserModel.findByIdAndUpdate(userId, {
+          media: mediaDoc._id,
+        });
+      }
+    }
+
+    const updateData: Record<string, unknown> = {};
+
+    if (data.bio !== undefined) {
+      updateData.bio = data.bio;
+    }
+
+    if (data.profile_picture !== undefined) {
+      updateData.profile_picture = data.profile_picture;
+    }
+
+    await UserModel.findByIdAndUpdate(userId, {
+      $set: updateData,
+    });
+
+    return true;
+  } catch (e) {
+    console.error("Unable to update Profile:", e);
+
+    throw createHttpError(500, {
+      message: "Internal Server Error",
+    });
+  }
 };
 
-const updateFcmTokenService = async (
-  userId: string,
-  fcm_token: string,
-) => {
+const updateFcmTokenService = async (userId: string, fcm_token: string) => {
   await UserModel.findByIdAndUpdate(userId, {
     $set: { fcm_token },
   });

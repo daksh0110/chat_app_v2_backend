@@ -11,6 +11,7 @@ export interface IChatGroup {
   type: CHAT_TYPE;
   created_by?: Types.ObjectId;
   image?: string;
+  media?: Types.ObjectId;
 }
 
 const chatGroupSchema = new Schema<IChatGroup>(
@@ -36,6 +37,10 @@ const chatGroupSchema = new Schema<IChatGroup>(
     image: {
       type: String,
       required: false,
+    },
+    media: {
+      type: Schema.Types.ObjectId,
+      ref: "Media",
     },
   },
   {

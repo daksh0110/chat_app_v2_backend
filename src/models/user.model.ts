@@ -10,6 +10,7 @@ export interface IUser {
   bio: string;
   profile_picture: string;
   fcm_token?: string;
+  media?: Types.ObjectId;
 }
 
 const userSchema = new Schema<IUser>(
@@ -22,6 +23,10 @@ const userSchema = new Schema<IUser>(
     bio: { type: String, required: false, default: "" },
     profile_picture: { type: String, required: false, default: "" },
     fcm_token: { type: String, required: false, default: null },
+    media: {
+      type: Schema.Types.ObjectId,
+      ref: "Media",
+    },
   },
   {
     timestamps: {

@@ -1,4 +1,5 @@
 import { body, header, param, query } from "express-validator";
+import { MediaModel } from "../models/media_modal";
 
 const createUserValidator = [
   body("name")
@@ -123,8 +124,11 @@ export const updateUserValidator = [
     .optional()
     .isString()
     .withMessage("FCM token must be a string"),
+  body("media")
+    .optional()
+    .isIn(Object.values(MediaModel))
+    .withMessage("Invalid media type"),
 ];
-
 
 export const googleAuthSetPasswordValidation = [
   body("token").notEmpty().withMessage("token is required").bail(),
