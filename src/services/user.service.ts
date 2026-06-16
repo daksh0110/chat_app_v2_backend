@@ -260,7 +260,8 @@ const getUsers = async (data: searchUser, userId: string) => {
     .skip(skip)
     .limit(limit)
     .sort({ createdAt: -1 })
-    .select("name email _id bio profile_picture")
+    .select("name email _id bio media")
+    .populate("media")
     .lean();
   const processedUsers = users.map((user) => ({
     ...user,
@@ -276,7 +277,8 @@ const getMyProfile = async (token: string) => {
   }
 
   const user = await UserModel.findById(userInfo.userId)
-    .select("name email _id bio profile_picture")
+    .select("name email _id bio profile_picture media")
+    .populate("media")
     .lean();
 
   return user;
