@@ -77,6 +77,7 @@ export const createGroupChat = (socket: Socket, userId: string) => {
           profile_pic_url: p.user_id.profilePic,
           chat_id: p.chat_id,
         })),
+        media,
       };
 
       const eventPayload = await createChatEvent({

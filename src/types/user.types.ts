@@ -14,6 +14,7 @@ export interface loginUserDto {
 export interface searchUser {
   page?: string;
   search?: string;
+  limit?: string;
 }
 
 export interface updateProfile {

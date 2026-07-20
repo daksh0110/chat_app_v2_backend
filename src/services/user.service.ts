@@ -242,7 +242,7 @@ const getUsers = async (data: searchUser, userId: string) => {
   const page = parseInt(data.page || "1");
   const search = data.search || "";
 
-  const limit = 10;
+  const limit = data.limit ? parseInt(data.limit) : 10;
   const skip = (page - 1) * limit;
 
   const filter: QueryFilter<IUser> = {
@@ -290,12 +290,14 @@ const getUserById = async (id: string) => {
   }
 
   const user = await UserModel.findById(id)
-    .select("name email _id bio profile_picture")
+    .select("name email _id bio profile_picture media")
+    .populate("media")
     .lean();
 
   if (!user) {
     throw createHttpError(404, { message: "User not found" });
   }
+  console.log("User found:", user);
   return {
     ...user,
     subtitle: user.email,

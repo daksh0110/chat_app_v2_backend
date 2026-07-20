@@ -31,6 +31,8 @@ const getChatById = async (id: string, userId: string) => {
           _id: mongoose.Types.ObjectId;
           name: string;
           profile_picture?: string;
+          email: string;
+          bio: string;
           media?: {
             _id: mongoose.Types.ObjectId;
             location?: string;
@@ -39,7 +41,7 @@ const getChatById = async (id: string, userId: string) => {
         };
       }>({
         path: "user_id",
-        select: "name profile_picture media",
+        select: "name profile_picture media email bio",
         populate: {
           path: "media",
         },
@@ -57,6 +59,8 @@ const getChatById = async (id: string, userId: string) => {
     name: p.user_id.name,
     chat_id: p.chat_id,
     media: p.user_id.media,
+    email: p.user_id.email,
+    bio: p.user_id.bio,
   }));
 
   const chatData = {
@@ -71,6 +75,7 @@ const getChatById = async (id: string, userId: string) => {
     participants: participantsData,
     media: group.media,
   };
+
   console.log(chatData);
   return {
     success: true,
