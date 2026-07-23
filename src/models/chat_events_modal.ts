@@ -5,25 +5,28 @@ export enum CHAT_EVENT {
   MESSAGE_DELIVERED = "MESSAGE_DELIVERED",
   MESSAGE_READ = "MESSAGE_READ",
   GROUP_CREATED = "GROUP_CREATED",
+  USER_DETAIL_EVENT = "USER_DETAIL_UPDATED",
 }
 
 export interface ChatEvent {
-  chat_id: Types.ObjectId;
-  message_id: Types.ObjectId;
+  chat_id?: Types.ObjectId;
+  message_id?: Types.ObjectId;
   event: CHAT_EVENT;
   actor_id: Types.ObjectId;
   sequence: number;
   payload: Record<string, any>;
+  is_global?: boolean;
 }
 
 const chatEventSchema = new Schema<ChatEvent>(
   {
     chat_id: {
       type: Types.ObjectId,
-      required: true,
+      required: false,
     },
     message_id: {
       type: Types.ObjectId,
+      required: false,
     },
     event: {
       type: String,
@@ -32,7 +35,6 @@ const chatEventSchema = new Schema<ChatEvent>(
     },
     actor_id: {
       type: Types.ObjectId,
-      required: true,
       ref: "User",
     },
     sequence: {
@@ -44,6 +46,10 @@ const chatEventSchema = new Schema<ChatEvent>(
     payload: {
       type: Schema.Types.Mixed,
       default: {},
+    },
+    is_global: {
+      type: Boolean,
+      default: false,
     },
   },
   {

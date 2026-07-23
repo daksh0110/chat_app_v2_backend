@@ -9,6 +9,7 @@ import { messageRead } from "./message_read";
 import { syncChats } from "./chats_sync";
 import { messageTyping } from "./message_typing";
 import { messageTypingStop } from "./message_typing_stop";
+import { userUpdatedSocket } from "./user_updated";
 import { ChatMemberModel } from "../models/chat_group_member.modal";
 import { createGroupChat } from "./create_group_socket";
 
@@ -56,6 +57,7 @@ const socketConnection = () => {
       syncChats(socket, userId);
       messageTyping(socket, userId);
       messageTypingStop(socket, userId);
+      userUpdatedSocket(socket);
       createGroupChat(socket, userId);
     } catch (error) {
       console.log("❌ Invalid token");
