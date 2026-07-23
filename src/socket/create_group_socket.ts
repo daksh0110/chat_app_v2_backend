@@ -5,15 +5,16 @@ import { Types } from "mongoose";
 import { io } from "./socket.connection";
 import { createChatEvent } from "../services/event.service";
 import { CHAT_EVENT } from "../models/chat_events_modal";
+import { MediaModel } from "../models/media_modal";
 
 export const createGroupChat = (socket: Socket, userId: string) => {
   socket.on("create-group", async (data, callback) => {
     try {
-      const { name, description, image, userIds = [] } = data;
+      const { name, description, media, userIds = [] } = data;
+
       const newChat = await ChatGroupModel.create({
         created_by: userId,
         description,
-        image,
         name,
         type: CHAT_TYPE.GROUP,
       });
@@ -52,6 +53,16 @@ export const createGroupChat = (socket: Socket, userId: string) => {
           user_id: { _id: Types.ObjectId; name: string; profilePic?: string };
         }>("user_id", "name profilePic")
         .lean();
+      if (media) {
+        const mediaDoc = await MediaModel.create({
+          actor_id: chatId,
+          content_type: media.content_type,
+          key: media.key,
+          name: media.name,
+          type: media.type,
+        });
+        await ChatGroupModel.findByIdAndUpdate(chatId, { media: mediaDoc._id });
+      }
 
       const groupData = {
         chat_id: chatId,
@@ -66,6 +77,7 @@ export const createGroupChat = (socket: Socket, userId: string) => {
           profile_pic_url: p.user_id.profilePic,
           chat_id: p.chat_id,
         })),
+        media,
       };
 
       const eventPayload = await createChatEvent({

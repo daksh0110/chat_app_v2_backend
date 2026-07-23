@@ -1,4 +1,5 @@
 import { body, header, param, query } from "express-validator";
+import { MediaModel } from "../models/media_modal";
 
 const createUserValidator = [
   body("name")
@@ -49,6 +50,10 @@ export const getUsers = [
     .optional()
     .isInt({ min: 1 })
     .withMessage("Page must be a positive integer"),
+  query("limit")
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage("Limit must be a positive integer"),
 ];
 
 export const getUserById = [
@@ -123,8 +128,11 @@ export const updateUserValidator = [
     .optional()
     .isString()
     .withMessage("FCM token must be a string"),
+  body("media")
+    .optional()
+    .isIn(Object.values(MediaModel))
+    .withMessage("Invalid media type"),
 ];
-
 
 export const googleAuthSetPasswordValidation = [
   body("token").notEmpty().withMessage("token is required").bail(),

@@ -3,6 +3,7 @@ import { verifyToken } from "../util/jwt";
 import mongoose from "mongoose";
 import { CHAT_TYPE, ChatGroupModel } from "../models/chat_group.modal";
 import { ChatMemberModel } from "../models/chat_group_member.modal";
+import { MediaModel } from "../models/media_modal";
 
 const getChatById = async (id: string, userId: string) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -19,15 +20,32 @@ const getChatById = async (id: string, userId: string) => {
   }
 
   const [group, participants] = await Promise.all([
-    ChatGroupModel.findById(id).lean(),
-    ChatMemberModel.find({ chat_id: id, is_active: true })
+    ChatGroupModel.findById(id).populate("media").lean(),
+
+    ChatMemberModel.find({
+      chat_id: id,
+      is_active: true,
+    })
       .populate<{
         user_id: {
           _id: mongoose.Types.ObjectId;
           name: string;
-          profilePic?: string;
+          profile_picture?: string;
+          email: string;
+          bio: string;
+          media?: {
+            _id: mongoose.Types.ObjectId;
+            location?: string;
+            url?: string;
+          };
         };
-      }>("user_id", "name profilePic")
+      }>({
+        path: "user_id",
+        select: "name profile_picture media email bio",
+        populate: {
+          path: "media",
+        },
+      })
       .lean(),
   ]);
 
@@ -39,8 +57,10 @@ const getChatById = async (id: string, userId: string) => {
     user_id: p.user_id._id.toString(),
     role: p.role,
     name: p.user_id.name,
-    profile_pic_url: p.user_id.profilePic,
     chat_id: p.chat_id,
+    media: p.user_id.media,
+    email: p.user_id.email,
+    bio: p.user_id.bio,
   }));
 
   const chatData = {
@@ -49,17 +69,14 @@ const getChatById = async (id: string, userId: string) => {
       group.type === CHAT_TYPE.DIRECT
         ? (participantsData.find((p) => p.user_id !== userId)?.name ?? "")
         : (group.name ?? ""),
-    profile_pic_url:
-      group.type === CHAT_TYPE.GROUP
-        ? (group.image ?? "")
-        : (participantsData.find((p) => p.user_id !== userId)
-            ?.profile_pic_url ?? ""),
     description:
       group.type === CHAT_TYPE.GROUP ? (group.description ?? "") : "",
     type: group.type,
     participants: participantsData,
+    media: group.media,
   };
 
+  console.log(chatData);
   return {
     success: true,
     message: "Chat Meta data fetched successfully",
