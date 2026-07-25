@@ -68,7 +68,6 @@ const sendOtpController = asyncHandler(async (req: Request, res: Response) => {
   const { email } = req.body;
 
   const response = await userService.sendOtpService(email);
-  console.log(response);
   createResponse(res, 200, "OTP sent successfully", response);
 });
 

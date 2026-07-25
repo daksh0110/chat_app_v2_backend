@@ -69,14 +69,12 @@ const getChatById = async (id: string, userId: string) => {
       group.type === CHAT_TYPE.DIRECT
         ? (participantsData.find((p) => p.user_id !== userId)?.name ?? "")
         : (group.name ?? ""),
-    description:
-      group.type === CHAT_TYPE.GROUP ? (group.description ?? "") : "",
+    bio: group.type === CHAT_TYPE.GROUP ? (group.bio ?? "") : "",
     type: group.type,
     participants: participantsData,
     media: group.media,
   };
 
-  console.log(chatData);
   return {
     success: true,
     message: "Chat Meta data fetched successfully",

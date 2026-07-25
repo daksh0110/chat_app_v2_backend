@@ -7,7 +7,6 @@ export const sendMessageSocket = (socket: Socket, userId: string) => {
   socket.on("send_message", async (data, callback) => {
     try {
       const { message, receiver_id, temp_id, chat_id, attachments } = data;
-      console.log("Received send_message event with data:", data);
       let chatId = chat_id;
 
       if (!chatId) {

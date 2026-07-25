@@ -69,7 +69,7 @@ export const syncChats = async (socket: Socket, userId: string) => {
           chat_id: group._id.toString(),
           name: group.name,
           profile_pic_url: group.image,
-          description: group.description,
+          description: group.bio,
           type: group.type,
           participants: participants.map((p) => ({
             user_id: p.user_id._id.toString(),
@@ -82,8 +82,6 @@ export const syncChats = async (socket: Socket, userId: string) => {
 
         socket.emit("group-sync", groupData);
       }
-
-      console.log(`Synced ${missedEvents.length} events for user ${userId}`);
     } catch (error) {
       console.error("Failed to sync chats:", error);
       socket.emit("chat_sync_error", {

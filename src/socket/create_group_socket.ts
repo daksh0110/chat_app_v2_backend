@@ -10,11 +10,10 @@ import { MediaModel } from "../models/media_modal";
 export const createGroupChat = (socket: Socket, userId: string) => {
   socket.on("create-group", async (data, callback) => {
     try {
-      const { name, description, media, userIds = [] } = data;
-
+      const { name, media, bio, userIds = [] } = data;
       const newChat = await ChatGroupModel.create({
         created_by: userId,
-        description,
+        bio: bio,
         name,
         type: CHAT_TYPE.GROUP,
       });
@@ -68,7 +67,7 @@ export const createGroupChat = (socket: Socket, userId: string) => {
         chat_id: chatId,
         name: newChat.name,
         profile_pic_url: newChat.image,
-        description: newChat.description,
+        bio: newChat.bio,
         type: newChat.type,
         participants: participants.map((p) => ({
           user_id: p.user_id._id.toString(),

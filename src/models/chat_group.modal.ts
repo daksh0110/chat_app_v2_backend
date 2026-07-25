@@ -7,20 +7,16 @@ export enum CHAT_TYPE {
 
 export interface IChatGroup {
   name?: string;
-  description?: string;
   type: CHAT_TYPE;
   created_by?: Types.ObjectId;
   image?: string;
   media?: Types.ObjectId;
+  bio: string;
 }
 
 const chatGroupSchema = new Schema<IChatGroup>(
   {
     name: {
-      type: String,
-    },
-
-    description: {
       type: String,
     },
 
@@ -42,6 +38,7 @@ const chatGroupSchema = new Schema<IChatGroup>(
       type: Schema.Types.ObjectId,
       ref: "Media",
     },
+    bio: { type: String, required: false, default: "" },
   },
   {
     timestamps: true,
