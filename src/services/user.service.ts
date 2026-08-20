@@ -297,7 +297,6 @@ const getUserById = async (id: string) => {
   if (!user) {
     throw createHttpError(404, { message: "User not found" });
   }
-  console.log("User found:", user);
   return {
     ...user,
     subtitle: user.email,
