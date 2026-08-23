@@ -44,7 +44,13 @@ router
     userController.googleAuthSetPasswordController,
   )
   .get("/", verifyUser, userValidation.getUsers, userController.getUsers)
-  .get("/me", userController.getMyProfile)
+  .get("/me", verifyUser, userController.getMyProfile)
+  .get("/auth", verifyUser, (_req, res) => {
+    res.status(200).json({
+      success: true,
+      message: "Access token is valid",
+    });
+  })
   .get("/chats/", verifyUser, userController.getChatsController)
   .post(
     "/send-otp",
@@ -68,6 +74,5 @@ router
     userController.updateFcmTokenController,
   )
   .get("/:id", userValidation.getUserById, userController.getUserById);
-
 
 export default router;
