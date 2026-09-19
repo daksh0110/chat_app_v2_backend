@@ -224,7 +224,84 @@ const createGroup = async (
   return { groupData, eventPayload, participants };
 };
 
+const changeGroupMember = async (
+  actorId: string,
+  chatId: string,
+  memberId: string,
+  action: "add" | "remove",
+) => {
+  if (!mongoose.Types.ObjectId.isValid(chatId)) {
+    throw createHttpError(400, { message: "Invalid chat id" });
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(memberId)) {
+    throw createHttpError(400, { message: "Invalid user id" });
+  }
+
+  const [group, actorMembership] = await Promise.all([
+    ChatGroupModel.findOne({ _id: chatId, type: CHAT_TYPE.GROUP }).lean(),
+    ChatMemberModel.findOne({
+      chat_id: chatId,
+      user_id: actorId,
+      is_active: true,
+    }).lean(),
+  ]);
+
+  if (!group) {
+    throw createHttpError(404, { message: "Group not found" });
+  }
+
+  if (!actorMembership || actorMembership.role !== ROLE.ADMIN) {
+    throw createHttpError(403, {
+      message: "Only group admins can manage members",
+    });
+  }
+
+  if (action === "add") {
+    const membership = await ChatMemberModel.findOneAndUpdate(
+      { chat_id: chatId, user_id: memberId },
+      { $set: { is_active: true }, $setOnInsert: { role: ROLE.MEMBER } },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    ).lean();
+    const payload = {
+      chat_id: chatId,
+      user_id: memberId,
+      role: membership.role,
+      actor_id: actorId,
+    };
+    const eventPayload = await createChatEvent({
+      chat_id: chatId,
+      actor_id: actorId,
+      event: CHAT_EVENT.GROUP_MEMBER_ADDED,
+      payload,
+    });
+    return { payload, eventPayload };
+  }
+
+  const membership = await ChatMemberModel.findOneAndUpdate(
+    { chat_id: chatId, user_id: memberId, is_active: true },
+    { $set: { is_active: false } },
+    { new: true },
+  ).lean();
+
+  if (!membership) {
+    throw createHttpError(404, {
+      message: "User is not an active group member",
+    });
+  }
+
+  const payload = { chat_id: chatId, user_id: memberId, actor_id: actorId };
+  const eventPayload = await createChatEvent({
+    chat_id: chatId,
+    actor_id: actorId,
+    event: CHAT_EVENT.GROUP_MEMBER_REMOVED,
+    payload,
+  });
+  return { payload, eventPayload };
+};
+
 export const chatService = {
   getChatById,
   createGroup,
+  changeGroupMember,
 };

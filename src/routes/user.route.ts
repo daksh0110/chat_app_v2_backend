@@ -53,6 +53,36 @@ router
   })
   .get("/chats/", verifyUser, userController.getChatsController)
   .post(
+    "/:id/friend-request",
+    verifyUser,
+    validation(userValidation.userRelationshipValidation),
+    userController.sendFriendRequestController,
+  )
+  .delete(
+    "/:id/friend",
+    verifyUser,
+    validation(userValidation.userRelationshipValidation),
+    userController.removeFriendController,
+  )
+  .delete(
+    "/:id/friend-request",
+    verifyUser,
+    validation(userValidation.userRelationshipValidation),
+    userController.cancelFriendRequestController,
+  )
+  .post(
+    "/:id/block",
+    verifyUser,
+    validation(userValidation.userRelationshipValidation),
+    userController.blockUserController,
+  )
+  .delete(
+    "/:id/block",
+    verifyUser,
+    validation(userValidation.userRelationshipValidation),
+    userController.unblockUserController,
+  )
+  .post(
     "/send-otp",
     userValidation.emailValidation,
     userController.sendOtpController,
@@ -73,6 +103,34 @@ router
     validation(userValidation.fcmTokenValidation),
     userController.updateFcmTokenController,
   )
-  .get("/:id", userValidation.getUserById, userController.getUserById);
+  .get(
+    "/friend-requests",
+    verifyUser,
+    userController.getFriendRequestsController,
+  )
+  .get("/friends", verifyUser, userController.getFriendsListController)
+  .get(
+    "/relationships",
+    verifyUser,
+    userController.getAllRelationshipsController,
+  )
+  .post(
+    "/:id/friend-request/accept",
+    verifyUser,
+    validation(userValidation.userRelationshipValidation),
+    userController.acceptFriendRequestController,
+  )
+  .post(
+    "/:id/friend-request/reject",
+    verifyUser,
+    validation(userValidation.userRelationshipValidation),
+    userController.rejectFriendRequestController,
+  )
+  .get(
+    "/:id",
+    verifyUser,
+    userValidation.getUserById,
+    userController.getUserById,
+  );
 
 export default router;

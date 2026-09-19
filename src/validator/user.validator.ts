@@ -60,6 +60,10 @@ export const getUserById = [
   param("id").isMongoId().withMessage("Invalid user id"),
 ];
 
+export const userRelationshipValidation = [
+  param("id").isMongoId().withMessage("Invalid user id"),
+];
+
 export const getMyProfile = [
   header("authorization")
     .notEmpty()
@@ -156,6 +160,7 @@ export const userValidation = {
   getUsers,
   getMyProfile,
   getUserById,
+  userRelationshipValidation,
   emailValidation,
   verifyOtpValidation,
   changePasswordValidation,

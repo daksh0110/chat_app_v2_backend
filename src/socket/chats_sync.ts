@@ -4,6 +4,7 @@ import { ChatMemberModel } from "../models/chat_group_member.modal";
 import { ChatEventModel, CHAT_EVENT } from "../models/chat_events_modal";
 import { CHAT_TYPE, ChatGroupModel } from "../models/chat_group.modal";
 import { Types } from "mongoose";
+import { requestService } from "../services/request_service";
 
 export const syncChats = async (socket: Socket, userId: string) => {
   socket.on("chat_sync", async () => {
@@ -37,6 +38,12 @@ export const syncChats = async (socket: Socket, userId: string) => {
             break;
           case CHAT_EVENT.GROUP_CREATED:
             socket.emit("group-created", payloadWithSeq);
+            break;
+          case CHAT_EVENT.GROUP_MEMBER_ADDED:
+            socket.emit("group-member-added", payloadWithSeq);
+            break;
+          case CHAT_EVENT.GROUP_MEMBER_REMOVED:
+            socket.emit("group-member-removed", payloadWithSeq);
             break;
           case CHAT_EVENT.USER_DETAIL_EVENT:
             socket.emit("user-info-updated", payloadWithSeq);
@@ -82,6 +89,10 @@ export const syncChats = async (socket: Socket, userId: string) => {
 
         socket.emit("group-sync", groupData);
       }
+
+      const relationships =
+        await requestService.getAllRelationshipsService(userId);
+      socket.emit("relationship_sync", relationships);
     } catch (error) {
       console.error("Failed to sync chats:", error);
       socket.emit("chat_sync_error", {

@@ -17,6 +17,12 @@ import crypto from "crypto";
 import { PasswordResetModel } from "../models/password_reset_modal";
 import { EmailVerificationModal } from "../models/email_verification_modal";
 import { MediaModel } from "../models/media_modal";
+import { BlockModel } from "../models/block.model";
+import {
+  FRIENDSHIP_STATUS,
+  FriendshipModel,
+} from "../models/friend_request.model";
+import { requestService } from "./request_service";
 
 const createUser = async (data: CreateUserDto) => {
   try {
@@ -249,6 +255,11 @@ const getUsers = async (data: searchUser, userId: string) => {
     _id: { $ne: userId },
   };
 
+  const blockedUserIds = await requestService.getBlockedUserIdsService(userId);
+  if (blockedUserIds.length) {
+    filter._id = { $ne: userId, $nin: blockedUserIds };
+  }
+
   if (search) {
     filter.$or = [
       { name: { $regex: search, $options: "i" } },
@@ -284,7 +295,7 @@ const getMyProfile = async (token: string) => {
   return user;
 };
 
-const getUserById = async (id: string) => {
+const getUserById = async (id: string, currentUserId: string) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw createHttpError(400, { message: "Invalid user id" });
   }
@@ -297,11 +308,42 @@ const getUserById = async (id: string) => {
   if (!user) {
     throw createHttpError(404, { message: "User not found" });
   }
+
+  const [block, friendship] = await Promise.all([
+    BlockModel.exists({
+      blocker_id: currentUserId,
+      blocked_user_id: id,
+    }),
+    FriendshipModel.findOne({
+      $or: [
+        { requester_id: currentUserId, recipient_id: id },
+        { requester_id: id, recipient_id: currentUserId },
+      ],
+    })
+      .select("requester_id recipient_id status")
+      .lean(),
+  ]);
+
+  let relationship_status;
+
+  if (block) {
+    relationship_status = "BLOCKED";
+  } else if (friendship?.status === FRIENDSHIP_STATUS.ACCEPTED) {
+    relationship_status = "FRIENDS";
+  } else if (friendship?.status === FRIENDSHIP_STATUS.PENDING) {
+    relationship_status =
+      friendship.requester_id.toString() === currentUserId
+        ? FRIENDSHIP_STATUS.PENDING_OUTCOMING
+        : FRIENDSHIP_STATUS.PENDING_INCOMING;
+  }
+
   return {
     ...user,
     subtitle: user.email,
+    relationship_status,
   };
 };
+
 const getChatsService = async (id: string) => {
   const pipeline: PipelineStage[] = [
     { $match: { user_id: new Types.ObjectId(id) } },
