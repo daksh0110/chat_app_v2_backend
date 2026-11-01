@@ -1,8 +1,9 @@
 import { CHAT_TYPE, ChatGroupModel } from "../models/chat_group.modal";
-import { ChatMemberModel } from "../models/chat_group_member.modal";
+import { ChatMemberModel, ROLE } from "../models/chat_group_member.modal";
 import { MediaModel } from "../models/media_modal";
 import { IReplyTo, MessageModel, MessageStatus } from "../models/message.modal";
 import { MessageStatusModel } from "../models/message_status_modal";
+import { MessageReactionModel } from "../models/message_reaction.modal";
 import { UserModel } from "../models/user.model";
 import { BlockModel } from "../models/block.model";
 import { awsService } from "./aws.service";
@@ -277,7 +278,75 @@ const createMessage = async (
   return payload;
 };
 
+const deleteMessageForEveryone = async (messageId: string, actorId: string) => {
+  const message = await MessageModel.findById(messageId);
+  if (!message) {
+    throw new Error("Message not found");
+  }
+
+  const isSender = message.sender_id.toString() === actorId;
+  let isAdmin = false;
+
+  if (!isSender) {
+    const membership = await ChatMemberModel.findOne({
+      chat_id: message.chat_id,
+      user_id: actorId,
+      is_active: true,
+      role: ROLE.ADMIN,
+    });
+    if (membership) {
+      isAdmin = true;
+    }
+  }
+
+  if (!isSender && !isAdmin) {
+    throw new Error("Unauthorized to delete this message");
+  }
+
+  await MessageModel.updateOne(
+    { _id: messageId },
+    {
+      $set: {
+        is_deleted: true,
+        message: "This message was deleted",
+        media: [],
+      },
+      $unset: { reply_to: 1 },
+    },
+  );
+
+  // Clean up reactions on this message
+  await MessageReactionModel.deleteMany({ message_id: new Types.ObjectId(messageId) });
+
+  return {
+    message_id: messageId,
+    chat_id: message.chat_id.toString(),
+    deleted_by: actorId,
+    is_deleted: true,
+  };
+};
+
+const deleteMessageForMe = async (messageId: string, userId: string) => {
+  const message = await MessageModel.findById(messageId);
+  if (!message) {
+    throw new Error("Message not found");
+  }
+
+  await MessageModel.updateOne(
+    { _id: messageId },
+    { $addToSet: { deleted_for: new Types.ObjectId(userId) } },
+  );
+
+  return {
+    message_id: messageId,
+    chat_id: message.chat_id.toString(),
+    user_id: userId,
+  };
+};
+
 export const messageService = {
   findOrCreateChatId,
   createMessage,
+  deleteMessageForEveryone,
+  deleteMessageForMe,
 };

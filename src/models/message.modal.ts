@@ -24,6 +24,8 @@ export interface IMessage {
   status: MessageStatus;
   media?: Types.ObjectId[];
   reply_to?: IReplyTo;
+  is_deleted?: boolean;
+  deleted_for?: Types.ObjectId[];
 }
 
 const messageSchema = new Schema<IMessage>(
@@ -72,6 +74,16 @@ const messageSchema = new Schema<IMessage>(
         default: "",
       },
     },
+    is_deleted: {
+      type: Boolean,
+      default: false,
+    },
+    deleted_for: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
   },
   {
     timestamps: true,

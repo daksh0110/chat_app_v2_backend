@@ -58,6 +58,9 @@ export const syncChats = async (socket: Socket, userId: string) => {
           case CHAT_EVENT.MESSAGE_REACTION:
             socket.emit("message_reaction", payloadWithSeq);
             break;
+          case CHAT_EVENT.MESSAGE_DELETED:
+            socket.emit("message_deleted", payloadWithSeq);
+            break;
         }
       }
 

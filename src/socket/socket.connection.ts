@@ -18,6 +18,7 @@ import { leaveGroup } from "./group/leave_group";
 import { changeMemberRole } from "./group/change_role";
 import { BlockModel } from "../models/block.model";
 import { messageReactionSocket } from "./socket.reaction";
+import { deleteMessageSocket } from "./socket.delete_message";
 
 export const server = http.createServer(app);
 
@@ -112,6 +113,7 @@ const socketConnection = () => {
       leaveGroup(socket, userId);
       changeMemberRole(socket, userId);
       messageReactionSocket(socket, userId);
+      deleteMessageSocket(socket, userId);
     } catch (error) {
       console.log("❌ Invalid token");
       socket.disconnect();
