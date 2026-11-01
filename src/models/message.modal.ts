@@ -8,6 +8,13 @@ export enum MessageStatus {
   READ = "read",
 }
 
+export interface IReplyTo {
+  message_id: Types.ObjectId;
+  sender_id?: Types.ObjectId;
+  sender_name?: string;
+  message?: string;
+}
+
 export interface IMessage {
   chat_id: Types.ObjectId;
   sender_id: Types.ObjectId;
@@ -16,6 +23,7 @@ export interface IMessage {
   updatedAt?: Date;
   status: MessageStatus;
   media?: Types.ObjectId[];
+  reply_to?: IReplyTo;
 }
 
 const messageSchema = new Schema<IMessage>(
@@ -46,6 +54,24 @@ const messageSchema = new Schema<IMessage>(
         ref: "Media",
       },
     ],
+    reply_to: {
+      message_id: {
+        type: Schema.Types.ObjectId,
+        ref: "Message",
+      },
+      sender_id: {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+      },
+      sender_name: {
+        type: String,
+        default: "",
+      },
+      message: {
+        type: String,
+        default: "",
+      },
+    },
   },
   {
     timestamps: true,

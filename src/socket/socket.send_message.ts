@@ -7,7 +7,7 @@ import { CHAT_EVENT } from "../models/chat_events_modal";
 export const sendMessageSocket = (socket: Socket, userId: string) => {
   socket.on("send_message", async (data, callback) => {
     try {
-      const { message, receiver_id, temp_id, chat_id, attachments } = data;
+      const { message, receiver_id, temp_id, chat_id, attachments, reply_to } = data;
       let chatId = chat_id;
 
       if (!chatId) {
@@ -28,6 +28,7 @@ export const sendMessageSocket = (socket: Socket, userId: string) => {
         message,
         temp_id,
         attachments,
+        reply_to,
       );
 
       const eventPayload = await createChatEvent({

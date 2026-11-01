@@ -1,12 +1,13 @@
 import { CHAT_TYPE, ChatGroupModel } from "../models/chat_group.modal";
 import { ChatMemberModel } from "../models/chat_group_member.modal";
 import { MediaModel } from "../models/media_modal";
-import { MessageModel, MessageStatus } from "../models/message.modal";
+import { IReplyTo, MessageModel, MessageStatus } from "../models/message.modal";
 import { MessageStatusModel } from "../models/message_status_modal";
 import { UserModel } from "../models/user.model";
 import { BlockModel } from "../models/block.model";
 import { awsService } from "./aws.service";
 import { sendNotification } from "./notification.service";
+import { Types } from "mongoose";
 
 const findOrCreateChatId = async (userId: string, receiverId: string) => {
   const myChats = await ChatMemberModel.find({
@@ -56,11 +57,43 @@ const createMessage = async (
   message: string,
   tempId?: string,
   attachments?: MediaModel[],
+  replyTo?: {
+    message_id: string;
+    sender_id?: string;
+    sender_name?: string;
+    message?: string;
+  },
 ) => {
+  let replyToData: IReplyTo | undefined = undefined;
+  if (replyTo?.message_id) {
+    let senderName = replyTo.sender_name;
+    let replyMsg = replyTo.message;
+    let rSenderId = replyTo.sender_id;
+
+    if (!senderName || replyMsg === undefined) {
+      const origMsg = await MessageModel.findById(replyTo.message_id).populate("sender_id", "name");
+      if (origMsg) {
+        if (origMsg.sender_id) {
+          rSenderId = (origMsg.sender_id as any)._id?.toString() || origMsg.sender_id.toString();
+          senderName = (origMsg.sender_id as any).name || "";
+        }
+        replyMsg = origMsg.message || "";
+      }
+    }
+
+    replyToData = {
+      message_id: new Types.ObjectId(replyTo.message_id),
+      sender_id: rSenderId ? new Types.ObjectId(rSenderId) : undefined,
+      sender_name: senderName || "",
+      message: replyMsg || "",
+    };
+  }
+
   const messageDb = await MessageModel.create({
     message,
     sender_id: senderId,
     chat_id: chatId,
+    ...(replyToData ? { reply_to: replyToData } : {}),
   });
 
   let attachmentPayloads: any[] = [];
@@ -151,6 +184,14 @@ const createMessage = async (
     message: messageDb.message,
     sender_id: messageDb.sender_id.toString(),
     attachments: attachmentPayloads,
+    reply_to: replyToData
+      ? {
+          message_id: replyToData.message_id.toString(),
+          sender_id: replyToData.sender_id?.toString() ?? null,
+          sender_name: replyToData.sender_name ?? "",
+          message: replyToData.message ?? "",
+        }
+      : null,
 
     created_at: messageDb.createdAt?.getTime() ?? null,
     message_statuses: messageStatusDocs.map((ms) => ({
