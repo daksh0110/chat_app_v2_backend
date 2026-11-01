@@ -55,6 +55,9 @@ export const syncChats = async (socket: Socket, userId: string) => {
           case CHAT_EVENT.USER_DETAIL_EVENT:
             socket.emit("user-info-updated", payloadWithSeq);
             break;
+          case CHAT_EVENT.MESSAGE_REACTION:
+            socket.emit("message_reaction", payloadWithSeq);
+            break;
         }
       }
 
