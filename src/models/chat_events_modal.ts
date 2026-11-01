@@ -5,7 +5,13 @@ export enum CHAT_EVENT {
   MESSAGE_DELIVERED = "MESSAGE_DELIVERED",
   MESSAGE_READ = "MESSAGE_READ",
   GROUP_CREATED = "GROUP_CREATED",
+  GROUP_MEMBER_ADDED = "GROUP_MEMBER_ADDED",
+  GROUP_MEMBER_REMOVED = "GROUP_MEMBER_REMOVED",
+  GROUP_MEMBER_LEFT = "GROUP_MEMBER_LEFT",
+  GROUP_MEMBER_ROLE_UPDATED = "GROUP_MEMBER_ROLE_UPDATED",
   USER_DETAIL_EVENT = "USER_DETAIL_UPDATED",
+  MESSAGE_REACTION = "MESSAGE_REACTION",
+  MESSAGE_DELETED = "MESSAGE_DELETED",
 }
 
 export interface ChatEvent {
@@ -16,6 +22,7 @@ export interface ChatEvent {
   sequence: number;
   payload: Record<string, any>;
   is_global?: boolean;
+  excluded_user_ids?: Types.ObjectId[];
 }
 
 const chatEventSchema = new Schema<ChatEvent>(
@@ -50,6 +57,11 @@ const chatEventSchema = new Schema<ChatEvent>(
     is_global: {
       type: Boolean,
       default: false,
+    },
+    excluded_user_ids: {
+      type: [Schema.Types.ObjectId],
+      ref: "User",
+      default: [],
     },
   },
   {

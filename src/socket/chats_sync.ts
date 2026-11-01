@@ -4,6 +4,7 @@ import { ChatMemberModel } from "../models/chat_group_member.modal";
 import { ChatEventModel, CHAT_EVENT } from "../models/chat_events_modal";
 import { CHAT_TYPE, ChatGroupModel } from "../models/chat_group.modal";
 import { Types } from "mongoose";
+import { requestService } from "../services/request_service";
 
 export const syncChats = async (socket: Socket, userId: string) => {
   socket.on("chat_sync", async () => {
@@ -20,6 +21,7 @@ export const syncChats = async (socket: Socket, userId: string) => {
       const missedEvents = await ChatEventModel.find({
         sequence: { $gt: last_sequence },
         $or: [{ chat_id: { $in: chatIds } }, { is_global: true }],
+        excluded_user_ids: { $ne: new Types.ObjectId(userId) },
       }).sort({ sequence: 1 });
 
       for (const event of missedEvents) {
@@ -38,8 +40,26 @@ export const syncChats = async (socket: Socket, userId: string) => {
           case CHAT_EVENT.GROUP_CREATED:
             socket.emit("group-created", payloadWithSeq);
             break;
+          case CHAT_EVENT.GROUP_MEMBER_ADDED:
+            socket.emit("group-member-added", payloadWithSeq);
+            break;
+          case CHAT_EVENT.GROUP_MEMBER_REMOVED:
+            socket.emit("group-member-removed", payloadWithSeq);
+            break;
+          case CHAT_EVENT.GROUP_MEMBER_LEFT:
+            socket.emit("group-member-left", payloadWithSeq);
+            break;
+          case CHAT_EVENT.GROUP_MEMBER_ROLE_UPDATED:
+            socket.emit("group-member-role-updated", payloadWithSeq);
+            break;
           case CHAT_EVENT.USER_DETAIL_EVENT:
             socket.emit("user-info-updated", payloadWithSeq);
+            break;
+          case CHAT_EVENT.MESSAGE_REACTION:
+            socket.emit("message_reaction", payloadWithSeq);
+            break;
+          case CHAT_EVENT.MESSAGE_DELETED:
+            socket.emit("message_deleted", payloadWithSeq);
             break;
         }
       }
@@ -82,6 +102,10 @@ export const syncChats = async (socket: Socket, userId: string) => {
 
         socket.emit("group-sync", groupData);
       }
+
+      const relationships =
+        await requestService.getAllRelationshipsService(userId);
+      socket.emit("relationship_sync", relationships);
     } catch (error) {
       console.error("Failed to sync chats:", error);
       socket.emit("chat_sync_error", {

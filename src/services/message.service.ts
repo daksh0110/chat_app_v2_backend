@@ -1,11 +1,14 @@
 import { CHAT_TYPE, ChatGroupModel } from "../models/chat_group.modal";
-import { ChatMemberModel } from "../models/chat_group_member.modal";
+import { ChatMemberModel, ROLE } from "../models/chat_group_member.modal";
 import { MediaModel } from "../models/media_modal";
-import { MessageModel, MessageStatus } from "../models/message.modal";
+import { IReplyTo, MessageModel, MessageStatus } from "../models/message.modal";
 import { MessageStatusModel } from "../models/message_status_modal";
+import { MessageReactionModel } from "../models/message_reaction.modal";
 import { UserModel } from "../models/user.model";
+import { BlockModel } from "../models/block.model";
 import { awsService } from "./aws.service";
 import { sendNotification } from "./notification.service";
+import { Types } from "mongoose";
 
 const findOrCreateChatId = async (userId: string, receiverId: string) => {
   const myChats = await ChatMemberModel.find({
@@ -55,11 +58,43 @@ const createMessage = async (
   message: string,
   tempId?: string,
   attachments?: MediaModel[],
+  replyTo?: {
+    message_id: string;
+    sender_id?: string;
+    sender_name?: string;
+    message?: string;
+  },
 ) => {
+  let replyToData: IReplyTo | undefined = undefined;
+  if (replyTo?.message_id) {
+    let senderName = replyTo.sender_name;
+    let replyMsg = replyTo.message;
+    let rSenderId = replyTo.sender_id;
+
+    if (!senderName || replyMsg === undefined) {
+      const origMsg = await MessageModel.findById(replyTo.message_id).populate("sender_id", "name");
+      if (origMsg) {
+        if (origMsg.sender_id) {
+          rSenderId = (origMsg.sender_id as any)._id?.toString() || origMsg.sender_id.toString();
+          senderName = (origMsg.sender_id as any).name || "";
+        }
+        replyMsg = origMsg.message || "";
+      }
+    }
+
+    replyToData = {
+      message_id: new Types.ObjectId(replyTo.message_id),
+      sender_id: rSenderId ? new Types.ObjectId(rSenderId) : undefined,
+      sender_name: senderName || "",
+      message: replyMsg || "",
+    };
+  }
+
   const messageDb = await MessageModel.create({
     message,
     sender_id: senderId,
     chat_id: chatId,
+    ...(replyToData ? { reply_to: replyToData } : {}),
   });
 
   let attachmentPayloads: any[] = [];
@@ -102,10 +137,35 @@ const createMessage = async (
       }),
     );
   }
-  const chatParticipants = await ChatMemberModel.find({
-    chat_id: chatId,
-    is_active: true,
-  }).select("user_id");
+
+  const [chatParticipants, chatGroup] = await Promise.all([
+    ChatMemberModel.find({
+      chat_id: chatId,
+      is_active: true,
+    }).select("user_id"),
+    ChatGroupModel.findById(chatId).select("name type").lean(),
+  ]);
+
+  let isBlockedByRecipient = false;
+  let blockedRecipientId: string | null = null;
+
+  if (chatGroup?.type === CHAT_TYPE.DIRECT) {
+    const recipientMember = chatParticipants.find(
+      (p) => p.user_id.toString() !== senderId,
+    );
+    if (recipientMember) {
+      const recipientId = recipientMember.user_id.toString();
+      const blocked = await BlockModel.exists({
+        blocker_id: recipientId,
+        blocked_user_id: senderId,
+      });
+      if (blocked) {
+        isBlockedByRecipient = true;
+        blockedRecipientId = recipientId;
+      }
+    }
+  }
+
   const messageStatuses = chatParticipants
     .filter((p) => p.user_id.toString() !== senderId)
     .map((p) => ({
@@ -113,8 +173,11 @@ const createMessage = async (
       user_id: p.user_id,
       status: MessageStatus.SENT,
     }));
-  const messageStatusDocs =
-    await MessageStatusModel.insertMany(messageStatuses);
+
+  const messageStatusDocs = messageStatuses.length
+    ? await MessageStatusModel.insertMany(messageStatuses)
+    : [];
+
   const payload = {
     temp_id: tempId,
     message_id: messageDb._id.toString(),
@@ -122,6 +185,14 @@ const createMessage = async (
     message: messageDb.message,
     sender_id: messageDb.sender_id.toString(),
     attachments: attachmentPayloads,
+    reply_to: replyToData
+      ? {
+          message_id: replyToData.message_id.toString(),
+          sender_id: replyToData.sender_id?.toString() ?? null,
+          sender_name: replyToData.sender_name ?? "",
+          message: replyToData.message ?? "",
+        }
+      : null,
 
     created_at: messageDb.createdAt?.getTime() ?? null,
     message_statuses: messageStatusDocs.map((ms) => ({
@@ -133,13 +204,16 @@ const createMessage = async (
       created_at: ms.created_at?.getTime() ?? null,
       updated_at: ms.updated_at?.getTime() ?? null,
     })),
+    is_blocked_by_recipient: isBlockedByRecipient,
+    blocked_recipient_id: blockedRecipientId,
   };
 
   (async () => {
     try {
-      const [sender, chatGroup] = await Promise.all([
+      if (isBlockedByRecipient) return;
+
+      const [sender] = await Promise.all([
         UserModel.findById(senderId).select("name").lean(),
-        ChatGroupModel.findById(chatId).select("name type").lean(),
       ]);
 
       if (!sender || !chatGroup) return;
@@ -204,7 +278,75 @@ const createMessage = async (
   return payload;
 };
 
+const deleteMessageForEveryone = async (messageId: string, actorId: string) => {
+  const message = await MessageModel.findById(messageId);
+  if (!message) {
+    throw new Error("Message not found");
+  }
+
+  const isSender = message.sender_id.toString() === actorId;
+  let isAdmin = false;
+
+  if (!isSender) {
+    const membership = await ChatMemberModel.findOne({
+      chat_id: message.chat_id,
+      user_id: actorId,
+      is_active: true,
+      role: ROLE.ADMIN,
+    });
+    if (membership) {
+      isAdmin = true;
+    }
+  }
+
+  if (!isSender && !isAdmin) {
+    throw new Error("Unauthorized to delete this message");
+  }
+
+  await MessageModel.updateOne(
+    { _id: messageId },
+    {
+      $set: {
+        is_deleted: true,
+        message: "This message was deleted",
+        media: [],
+      },
+      $unset: { reply_to: 1 },
+    },
+  );
+
+  // Clean up reactions on this message
+  await MessageReactionModel.deleteMany({ message_id: new Types.ObjectId(messageId) });
+
+  return {
+    message_id: messageId,
+    chat_id: message.chat_id.toString(),
+    deleted_by: actorId,
+    is_deleted: true,
+  };
+};
+
+const deleteMessageForMe = async (messageId: string, userId: string) => {
+  const message = await MessageModel.findById(messageId);
+  if (!message) {
+    throw new Error("Message not found");
+  }
+
+  await MessageModel.updateOne(
+    { _id: messageId },
+    { $addToSet: { deleted_for: new Types.ObjectId(userId) } },
+  );
+
+  return {
+    message_id: messageId,
+    chat_id: message.chat_id.toString(),
+    user_id: userId,
+  };
+};
+
 export const messageService = {
   findOrCreateChatId,
   createMessage,
+  deleteMessageForEveryone,
+  deleteMessageForMe,
 };

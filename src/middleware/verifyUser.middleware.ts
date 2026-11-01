@@ -13,14 +13,30 @@ export const verifyUser = asyncHandler(
       });
     }
     const token = authHeader.split(" ")[1];
-    const userInfo = verifyToken(token);
+    if (!token) {
+      throw createHttpError(401, { message: "Invalid access token" });
+    }
+
+    let userInfo;
+    try {
+      userInfo = verifyToken(token);
+    } catch {
+      throw createHttpError(401, {
+        message: "Invalid or expired access token",
+      });
+    }
+
     if (!userInfo.userId) {
-      throw createHttpError(400, { message: "Invalid accessToken" });
+      throw createHttpError(401, { message: "Invalid access token" });
     }
 
     const user = await UserModel.findById(userInfo.userId)
       .select("name email _id")
       .lean();
+
+    if (!user) {
+      throw createHttpError(401, { message: "User does not exist" });
+    }
 
     (req as any).user = user;
     next();

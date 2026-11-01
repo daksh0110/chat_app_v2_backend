@@ -3,10 +3,11 @@ import { io } from "./socket.connection";
 import { messageService } from "../services/message.service";
 import { createChatEvent } from "../services/event.service";
 import { CHAT_EVENT } from "../models/chat_events_modal";
+
 export const sendMessageSocket = (socket: Socket, userId: string) => {
   socket.on("send_message", async (data, callback) => {
     try {
-      const { message, receiver_id, temp_id, chat_id, attachments } = data;
+      const { message, receiver_id, temp_id, chat_id, attachments, reply_to } = data;
       let chatId = chat_id;
 
       if (!chatId) {
@@ -27,6 +28,7 @@ export const sendMessageSocket = (socket: Socket, userId: string) => {
         message,
         temp_id,
         attachments,
+        reply_to,
       );
 
       const eventPayload = await createChatEvent({
@@ -34,15 +36,30 @@ export const sendMessageSocket = (socket: Socket, userId: string) => {
         actor_id: userId,
         event: CHAT_EVENT.MESSAGE_SENT,
         payload: payload,
+        excluded_user_ids:
+          payload.is_blocked_by_recipient && payload.blocked_recipient_id
+            ? [payload.blocked_recipient_id]
+            : undefined,
       });
+
       if (callback) {
         callback?.({ ...payload, sequence: eventPayload.sequence });
       }
 
-      io.to(chatId.toString()).emit("receive_message", {
-        ...payload,
-        sequence: eventPayload.sequence,
-      });
+      if (payload.is_blocked_by_recipient) {
+        // Recipient blocked sender.
+        // Sender shouldn't know they are blocked: message is acknowledged,
+        // but not delivered to recipient.
+        socket.emit("receive_message", {
+          ...payload,
+          sequence: eventPayload.sequence,
+        });
+      } else {
+        io.to(chatId.toString()).emit("receive_message", {
+          ...payload,
+          sequence: eventPayload.sequence,
+        });
+      }
     } catch (error) {
       console.error("Send message error:", error);
 
@@ -55,4 +72,5 @@ export const sendMessageSocket = (socket: Socket, userId: string) => {
     }
   });
 };
+
 export default sendMessageSocket;

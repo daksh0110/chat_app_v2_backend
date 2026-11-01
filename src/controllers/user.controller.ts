@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import asyncHandler from "express-async-handler";
 import { userService } from "../services/user.service";
+import { requestService } from "../services/request_service";
 import { createResponse } from "../util/response";
 import createHttpError from "http-errors";
 import { IUser } from "../models/user.model";
@@ -53,9 +54,68 @@ const getMyProfile = asyncHandler(async (req: Request, res: Response) => {
 
 const getUserById = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const response = await userService.getUserById(id as string);
+  const user = (req as any).user as IUser;
+  const response = await userService.getUserById(
+    id as string,
+    user._id.toString(),
+  );
   createResponse(res, 200, "User fetched successfully", response);
 });
+
+const sendFriendRequestController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const user = (req as any).user as IUser;
+    const response = await requestService.sendFriendRequestService(
+      user._id.toString(),
+      req.params.id as string,
+    );
+    createResponse(res, 201, "Friend request sent successfully", response);
+  },
+);
+
+const removeFriendController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const user = (req as any).user as IUser;
+    await requestService.removeFriendService(
+      user._id.toString(),
+      req.params.id as string,
+    );
+    createResponse(res, 200, "Friend removed successfully", null);
+  },
+);
+
+const cancelFriendRequestController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const user = (req as any).user as IUser;
+    await requestService.cancelFriendRequestService(
+      user._id.toString(),
+      req.params.id as string,
+    );
+    createResponse(res, 200, "Friend request cancelled successfully", null);
+  },
+);
+
+const blockUserController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const user = (req as any).user as IUser;
+    await requestService.blockUserService(
+      user._id.toString(),
+      req.params.id as string,
+    );
+    createResponse(res, 200, "User blocked successfully", null);
+  },
+);
+
+const unblockUserController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const user = (req as any).user as IUser;
+    await requestService.unblockUserService(
+      user._id.toString(),
+      req.params.id as string,
+    );
+    createResponse(res, 200, "User unblocked successfully", null);
+  },
+);
 
 const getChatsController = asyncHandler(async (req: Request, res: Response) => {
   const user = (req as any).user as IUser;
@@ -129,6 +189,63 @@ const updateFcmTokenController = asyncHandler(
   },
 );
 
+const getFriendRequestsController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const user = (req as any).user as IUser;
+    const response = await requestService.getFriendRequestsService(
+      user._id.toString(),
+    );
+    createResponse(res, 200, "Friend requests fetched successfully", response);
+  },
+);
+
+const getFriendsListController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const user = (req as any).user as IUser;
+    const response = await requestService.getFriendsListService(
+      user._id.toString(),
+    );
+    createResponse(res, 200, "Friends list fetched successfully", response);
+  },
+);
+
+const acceptFriendRequestController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const user = (req as any).user as IUser;
+    await requestService.acceptFriendRequestService(
+      req.params.id as string,
+      user._id.toString(),
+    );
+    createResponse(res, 200, "Friend request accepted successfully", null);
+  },
+);
+
+const rejectFriendRequestController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const user = (req as any).user as IUser;
+    await requestService.rejectFriendRequestService(
+      req.params.id as string,
+      user._id.toString(),
+    );
+    createResponse(res, 200, "Friend request rejected successfully", null);
+  },
+);
+
+const getAllRelationshipsController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const user = (req as any).user as IUser;
+    const response = await requestService.getAllRelationshipsService(
+      user._id.toString(),
+    );
+    createResponse(
+      res,
+      200,
+      "All relationships fetched successfully",
+      response,
+    );
+  },
+);
+
 export const userController = {
   createUser,
   loginUser,
@@ -145,4 +262,14 @@ export const userController = {
   updateUser,
   googleAuthSetPasswordController,
   updateFcmTokenController,
+  sendFriendRequestController,
+  removeFriendController,
+  cancelFriendRequestController,
+  blockUserController,
+  unblockUserController,
+  getFriendRequestsController,
+  getFriendsListController,
+  getAllRelationshipsController,
+  acceptFriendRequestController,
+  rejectFriendRequestController,
 };

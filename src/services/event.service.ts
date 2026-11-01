@@ -1,5 +1,6 @@
 import { CHAT_EVENT, ChatEventModel } from "../models/chat_events_modal";
 import { getNextSequence } from "../models/counter_modal";
+import { Types } from "mongoose";
 
 interface CreateChatEventInput {
   chat_id?: string;
@@ -13,6 +14,8 @@ interface CreateChatEventInput {
   payload?: Record<string, any>;
 
   is_global?: boolean;
+
+  excluded_user_ids?: (string | Types.ObjectId)[];
 }
 
 export async function createChatEvent(data: CreateChatEventInput) {
@@ -32,6 +35,12 @@ export async function createChatEvent(data: CreateChatEventInput) {
 
   if (data.message_id) {
     eventData.message_id = data.message_id;
+  }
+
+  if (data.excluded_user_ids?.length) {
+    eventData.excluded_user_ids = data.excluded_user_ids.map((id) =>
+      typeof id === "string" ? new Types.ObjectId(id) : id,
+    );
   }
 
   return ChatEventModel.create(eventData);
