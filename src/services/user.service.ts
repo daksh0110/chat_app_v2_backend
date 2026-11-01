@@ -255,7 +255,8 @@ const getUsers = async (data: searchUser, userId: string) => {
     _id: { $ne: userId },
   };
 
-  const blockedUserIds = await requestService.getBlockedUserIdsService(userId);
+  const blockedUserIds =
+    await requestService.getAllBlockedUserIdsForSearch(userId);
   if (blockedUserIds.length) {
     filter._id = { $ne: userId, $nin: blockedUserIds };
   }
@@ -309,7 +310,11 @@ const getUserById = async (id: string, currentUserId: string) => {
     throw createHttpError(404, { message: "User not found" });
   }
 
-  const [block, friendship] = await Promise.all([
+  const [isBlockedByTarget, block, friendship] = await Promise.all([
+    BlockModel.exists({
+      blocker_id: id,
+      blocked_user_id: currentUserId,
+    }),
     BlockModel.exists({
       blocker_id: currentUserId,
       blocked_user_id: id,
@@ -323,6 +328,10 @@ const getUserById = async (id: string, currentUserId: string) => {
       .select("requester_id recipient_id status")
       .lean(),
   ]);
+
+  if (isBlockedByTarget) {
+    throw createHttpError(404, { message: "User not found" });
+  }
 
   let relationship_status;
 

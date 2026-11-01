@@ -15,17 +15,21 @@ export const addGroupMember = (socket: Socket, actorId: string) => {
       const emittedData = { ...payload, sequence: eventPayload.sequence };
       io.in(payload.user_id).socketsJoin(payload.chat_id);
       io.to(payload.chat_id).emit("group-member-added", emittedData);
-      callback({
-        success: true,
-        message: "Group member added successfully",
-        ...emittedData,
-      });
+      if (typeof callback === "function") {
+        callback({
+          success: true,
+          message: "Group member added successfully",
+          ...emittedData,
+        });
+      }
     } catch (error: any) {
       console.error("Failed to add group member:", error);
-      callback({
-        success: false,
-        message: error?.message || "Failed to add group member",
-      });
+      if (typeof callback === "function") {
+        callback({
+          success: false,
+          message: error?.message || "Failed to add group member",
+        });
+      }
     }
   });
 };

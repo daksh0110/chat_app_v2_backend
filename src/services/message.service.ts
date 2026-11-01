@@ -4,6 +4,7 @@ import { MediaModel } from "../models/media_modal";
 import { MessageModel, MessageStatus } from "../models/message.modal";
 import { MessageStatusModel } from "../models/message_status_modal";
 import { UserModel } from "../models/user.model";
+import { BlockModel } from "../models/block.model";
 import { awsService } from "./aws.service";
 import { sendNotification } from "./notification.service";
 
@@ -102,10 +103,35 @@ const createMessage = async (
       }),
     );
   }
-  const chatParticipants = await ChatMemberModel.find({
-    chat_id: chatId,
-    is_active: true,
-  }).select("user_id");
+
+  const [chatParticipants, chatGroup] = await Promise.all([
+    ChatMemberModel.find({
+      chat_id: chatId,
+      is_active: true,
+    }).select("user_id"),
+    ChatGroupModel.findById(chatId).select("name type").lean(),
+  ]);
+
+  let isBlockedByRecipient = false;
+  let blockedRecipientId: string | null = null;
+
+  if (chatGroup?.type === CHAT_TYPE.DIRECT) {
+    const recipientMember = chatParticipants.find(
+      (p) => p.user_id.toString() !== senderId,
+    );
+    if (recipientMember) {
+      const recipientId = recipientMember.user_id.toString();
+      const blocked = await BlockModel.exists({
+        blocker_id: recipientId,
+        blocked_user_id: senderId,
+      });
+      if (blocked) {
+        isBlockedByRecipient = true;
+        blockedRecipientId = recipientId;
+      }
+    }
+  }
+
   const messageStatuses = chatParticipants
     .filter((p) => p.user_id.toString() !== senderId)
     .map((p) => ({
@@ -113,8 +139,11 @@ const createMessage = async (
       user_id: p.user_id,
       status: MessageStatus.SENT,
     }));
-  const messageStatusDocs =
-    await MessageStatusModel.insertMany(messageStatuses);
+
+  const messageStatusDocs = messageStatuses.length
+    ? await MessageStatusModel.insertMany(messageStatuses)
+    : [];
+
   const payload = {
     temp_id: tempId,
     message_id: messageDb._id.toString(),
@@ -133,13 +162,16 @@ const createMessage = async (
       created_at: ms.created_at?.getTime() ?? null,
       updated_at: ms.updated_at?.getTime() ?? null,
     })),
+    is_blocked_by_recipient: isBlockedByRecipient,
+    blocked_recipient_id: blockedRecipientId,
   };
 
   (async () => {
     try {
-      const [sender, chatGroup] = await Promise.all([
+      if (isBlockedByRecipient) return;
+
+      const [sender] = await Promise.all([
         UserModel.findById(senderId).select("name").lean(),
-        ChatGroupModel.findById(chatId).select("name type").lean(),
       ]);
 
       if (!sender || !chatGroup) return;

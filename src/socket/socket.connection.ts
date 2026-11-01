@@ -14,6 +14,9 @@ import { ChatMemberModel } from "../models/chat_group_member.modal";
 import { createGroupChat } from "./create_group_socket";
 import { addGroupMember } from "./group/add_member";
 import { removeGroupMember } from "./group/remove_member";
+import { leaveGroup } from "./group/leave_group";
+import { changeMemberRole } from "./group/change_role";
+import { BlockModel } from "../models/block.model";
 
 export const server = http.createServer(app);
 
@@ -37,19 +40,61 @@ const socketConnection = () => {
       socket.join(userId);
       const userChatIds = await ChatMemberModel.find({
         user_id: userId,
+        is_active: true,
       }).select("chat_id");
       for (const chatid of userChatIds) {
         if (chatid && chatid.chat_id) socket.join(chatid.chat_id.toString());
       }
       onlineUsers.set(userId, socket.id);
-      socket.broadcast.emit("user_online", { userId });
+
+      // Notify non-blocked users that this user came online
+      BlockModel.find({
+        $or: [{ blocker_id: userId }, { blocked_user_id: userId }],
+      })
+        .select("blocker_id blocked_user_id")
+        .then((blockedDocs) => {
+          const blockedSet = new Set<string>();
+          for (const doc of blockedDocs) {
+            const b1 = doc.blocker_id.toString();
+            const b2 = doc.blocked_user_id.toString();
+            if (b1 === userId) blockedSet.add(b2);
+            else blockedSet.add(b1);
+          }
+          for (const [onlineId, sockId] of onlineUsers.entries()) {
+            if (onlineId !== userId && !blockedSet.has(onlineId)) {
+              io.to(sockId).emit("user_online", { userId });
+            }
+          }
+        })
+        .catch(() => {
+          socket.broadcast.emit("user_online", { userId });
+        });
 
       console.log("✅ User connected:", userId);
 
-      socket.on("disconnect", () => {
+      socket.on("disconnect", async () => {
         console.log("❌ Client disconnected:", userId);
         onlineUsers.delete(userId);
-        socket.broadcast.emit("user_offline", { userId });
+        try {
+          const blockedDocs = await BlockModel.find({
+            $or: [{ blocker_id: userId }, { blocked_user_id: userId }],
+          }).select("blocker_id blocked_user_id");
+
+          const blockedSet = new Set<string>();
+          for (const doc of blockedDocs) {
+            const b1 = doc.blocker_id.toString();
+            const b2 = doc.blocked_user_id.toString();
+            if (b1 === userId) blockedSet.add(b2);
+            else blockedSet.add(b1);
+          }
+          for (const [onlineId, sockId] of onlineUsers.entries()) {
+            if (onlineId !== userId && !blockedSet.has(onlineId)) {
+              io.to(sockId).emit("user_offline", { userId });
+            }
+          }
+        } catch {
+          socket.broadcast.emit("user_offline", { userId });
+        }
       });
 
       sendMessageSocket(socket, userId);
@@ -63,6 +108,8 @@ const socketConnection = () => {
       createGroupChat(socket, userId);
       addGroupMember(socket, userId);
       removeGroupMember(socket, userId);
+      leaveGroup(socket, userId);
+      changeMemberRole(socket, userId);
     } catch (error) {
       console.log("❌ Invalid token");
       socket.disconnect();

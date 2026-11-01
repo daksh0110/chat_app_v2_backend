@@ -21,6 +21,7 @@ export const syncChats = async (socket: Socket, userId: string) => {
       const missedEvents = await ChatEventModel.find({
         sequence: { $gt: last_sequence },
         $or: [{ chat_id: { $in: chatIds } }, { is_global: true }],
+        excluded_user_ids: { $ne: new Types.ObjectId(userId) },
       }).sort({ sequence: 1 });
 
       for (const event of missedEvents) {
@@ -44,6 +45,12 @@ export const syncChats = async (socket: Socket, userId: string) => {
             break;
           case CHAT_EVENT.GROUP_MEMBER_REMOVED:
             socket.emit("group-member-removed", payloadWithSeq);
+            break;
+          case CHAT_EVENT.GROUP_MEMBER_LEFT:
+            socket.emit("group-member-left", payloadWithSeq);
+            break;
+          case CHAT_EVENT.GROUP_MEMBER_ROLE_UPDATED:
+            socket.emit("group-member-role-updated", payloadWithSeq);
             break;
           case CHAT_EVENT.USER_DETAIL_EVENT:
             socket.emit("user-info-updated", payloadWithSeq);

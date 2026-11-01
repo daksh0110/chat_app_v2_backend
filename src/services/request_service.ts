@@ -196,6 +196,15 @@ const blockUserService = async (userId: string, targetUserId: string) => {
       upsert: true,
     },
   );
+
+  // Clean up any existing friendship or pending requests between the two
+  await FriendshipModel.deleteMany({
+    $or: [
+      { requester_id: userId, recipient_id: targetUserId },
+      { requester_id: targetUserId, recipient_id: userId },
+    ],
+  });
+
   return;
 };
 
@@ -226,6 +235,19 @@ const getBlockedUserIdsService = async (userId: string) => {
   return BlockModel.distinct("blocked_user_id", {
     blocker_id: userId,
   });
+};
+
+const getAllBlockedUserIdsForSearch = async (userId: string) => {
+  const [blockedByMe, blockedMe] = await Promise.all([
+    BlockModel.distinct("blocked_user_id", { blocker_id: userId }),
+    BlockModel.distinct("blocker_id", { blocked_user_id: userId }),
+  ]);
+  return [
+    ...new Set([
+      ...blockedByMe.map((id) => id.toString()),
+      ...blockedMe.map((id) => id.toString()),
+    ]),
+  ];
 };
 
 const getFriendRequestsService = async (userId: string) => {
@@ -408,6 +430,7 @@ export const requestService = {
   unblockUserService,
   isUserBlockedService,
   getBlockedUserIdsService,
+  getAllBlockedUserIdsForSearch,
   getFriendRequestsService,
   getFriendsListService,
   getAllRelationshipsService,

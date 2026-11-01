@@ -239,7 +239,9 @@ const changeGroupMember = async (
   }
 
   const [group, actorMembership] = await Promise.all([
-    ChatGroupModel.findOne({ _id: chatId, type: CHAT_TYPE.GROUP }).lean(),
+    ChatGroupModel.findOne({ _id: chatId, type: CHAT_TYPE.GROUP })
+      .populate("media")
+      .lean(),
     ChatMemberModel.findOne({
       chat_id: chatId,
       user_id: actorId,
@@ -263,18 +265,90 @@ const changeGroupMember = async (
       { $set: { is_active: true }, $setOnInsert: { role: ROLE.MEMBER } },
       { upsert: true, new: true, setDefaultsOnInsert: true },
     ).lean();
+
+    const [actor, memberUser, allParticipants] = await Promise.all([
+      UserModel.findById(actorId).select("name").lean(),
+      UserModel.findById(memberId)
+        .select("name profile_picture media bio email fcm_token")
+        .populate("media")
+        .lean(),
+      ChatMemberModel.find({ chat_id: chatId, is_active: true })
+        .populate<{
+          user_id: {
+            _id: mongoose.Types.ObjectId;
+            name: string;
+            profile_picture?: string;
+            email: string;
+            bio: string;
+            media?: { _id: mongoose.Types.ObjectId; location?: string; url?: string };
+          };
+        }>({
+          path: "user_id",
+          select: "name profile_picture media email bio",
+          populate: { path: "media" },
+        })
+        .lean(),
+    ]);
+
+    const participantsData = allParticipants.map((p) => ({
+      user_id: p.user_id._id.toString(),
+      role: p.role,
+      name: p.user_id.name,
+      chat_id: p.chat_id,
+      media: p.user_id.media,
+      email: p.user_id.email,
+      bio: p.user_id.bio,
+    }));
+
     const payload = {
       chat_id: chatId,
       user_id: memberId,
       role: membership.role,
       actor_id: actorId,
+      actor_name: actor?.name ?? "",
+      member_name: memberUser?.name ?? "",
+      member: memberUser
+        ? {
+            user_id: memberUser._id.toString(),
+            name: memberUser.name,
+            email: memberUser.email,
+            bio: memberUser.bio,
+            media: memberUser.media,
+          }
+        : undefined,
+      group: {
+        chat_id: chatId,
+        name: group.name,
+        bio: group.bio,
+        type: group.type,
+        media: group.media,
+      },
+      participants: participantsData,
     };
+
     const eventPayload = await createChatEvent({
       chat_id: chatId,
       actor_id: actorId,
       event: CHAT_EVENT.GROUP_MEMBER_ADDED,
       payload,
     });
+
+    if (memberUser?.fcm_token) {
+      const title = group.name ?? "Group Chat";
+      const body = `${actor?.name ?? "Admin"} added you to ${title}`;
+      sendNotification({
+        token: memberUser.fcm_token,
+        title,
+        body,
+        data: {
+          chat_id: chatId,
+          event: CHAT_EVENT.GROUP_MEMBER_ADDED,
+        },
+      }).catch((err) =>
+        console.error("[FCM] Failed to send group add notification:", err),
+      );
+    }
+
     return { payload, eventPayload };
   }
 
@@ -290,13 +364,248 @@ const changeGroupMember = async (
     });
   }
 
-  const payload = { chat_id: chatId, user_id: memberId, actor_id: actorId };
+  const [actor, memberUser] = await Promise.all([
+    UserModel.findById(actorId).select("name").lean(),
+    UserModel.findById(memberId).select("name fcm_token").lean(),
+  ]);
+
+  const payload = {
+    chat_id: chatId,
+    user_id: memberId,
+    actor_id: actorId,
+    actor_name: actor?.name ?? "",
+    member_name: memberUser?.name ?? "",
+  };
+
   const eventPayload = await createChatEvent({
     chat_id: chatId,
     actor_id: actorId,
     event: CHAT_EVENT.GROUP_MEMBER_REMOVED,
     payload,
   });
+
+  if (memberUser?.fcm_token) {
+    const title = group.name ?? "Group Chat";
+    const body = `${actor?.name ?? "Admin"} removed you from ${title}`;
+    sendNotification({
+      token: memberUser.fcm_token,
+      title,
+      body,
+      data: {
+        chat_id: chatId,
+        event: CHAT_EVENT.GROUP_MEMBER_REMOVED,
+      },
+    }).catch((err) =>
+      console.error("[FCM] Failed to send group remove notification:", err),
+    );
+  }
+
+  return { payload, eventPayload };
+};
+
+const leaveGroup = async (userId: string, chatId: string) => {
+  if (!mongoose.Types.ObjectId.isValid(chatId)) {
+    throw createHttpError(400, { message: "Invalid chat id" });
+  }
+
+  const [group, membership] = await Promise.all([
+    ChatGroupModel.findOne({ _id: chatId, type: CHAT_TYPE.GROUP }).lean(),
+    ChatMemberModel.findOne({
+      chat_id: chatId,
+      user_id: userId,
+      is_active: true,
+    }).lean(),
+  ]);
+
+  if (!group) {
+    throw createHttpError(404, { message: "Group not found" });
+  }
+
+  if (!membership) {
+    throw createHttpError(400, {
+      message: "You are not an active member of this group",
+    });
+  }
+
+  await ChatMemberModel.updateOne(
+    { _id: membership._id },
+    { $set: { is_active: false } },
+  );
+
+  let promotedAdminId: string | undefined = undefined;
+
+  if (membership.role === ROLE.ADMIN) {
+    const remainingAdmin = await ChatMemberModel.findOne({
+      chat_id: chatId,
+      is_active: true,
+      role: ROLE.ADMIN,
+      _id: { $ne: membership._id },
+    }).lean();
+
+    if (!remainingAdmin) {
+      const oldestMember = await ChatMemberModel.findOne({
+        chat_id: chatId,
+        is_active: true,
+        _id: { $ne: membership._id },
+      })
+        .sort({ createdAt: 1 })
+        .lean();
+
+      if (oldestMember) {
+        await ChatMemberModel.updateOne(
+          { _id: oldestMember._id },
+          { $set: { role: ROLE.ADMIN } },
+        );
+        promotedAdminId = oldestMember.user_id.toString();
+
+        await createChatEvent({
+          chat_id: chatId,
+          actor_id: userId,
+          event: CHAT_EVENT.GROUP_MEMBER_ROLE_UPDATED,
+          payload: {
+            chat_id: chatId,
+            user_id: promotedAdminId,
+            role: ROLE.ADMIN,
+            actor_id: userId,
+          },
+        });
+      }
+    }
+  }
+
+  const memberUser = await UserModel.findById(userId).select("name").lean();
+
+  const payload = {
+    chat_id: chatId,
+    user_id: userId,
+    member_name: memberUser?.name ?? "",
+    promoted_admin_id: promotedAdminId,
+  };
+
+  const eventPayload = await createChatEvent({
+    chat_id: chatId,
+    actor_id: userId,
+    event: CHAT_EVENT.GROUP_MEMBER_LEFT,
+    payload,
+  });
+
+  return { payload, eventPayload };
+};
+
+const changeMemberRole = async (
+  actorId: string,
+  chatId: string,
+  memberId: string,
+  newRole: ROLE,
+) => {
+  if (!mongoose.Types.ObjectId.isValid(chatId)) {
+    throw createHttpError(400, { message: "Invalid chat id" });
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(memberId)) {
+    throw createHttpError(400, { message: "Invalid user id" });
+  }
+
+  const [group, actorMembership, targetMembership] = await Promise.all([
+    ChatGroupModel.findOne({ _id: chatId, type: CHAT_TYPE.GROUP }).lean(),
+    ChatMemberModel.findOne({
+      chat_id: chatId,
+      user_id: actorId,
+      is_active: true,
+    }).lean(),
+    ChatMemberModel.findOne({
+      chat_id: chatId,
+      user_id: memberId,
+      is_active: true,
+    }).lean(),
+  ]);
+
+  if (!group) {
+    throw createHttpError(404, { message: "Group not found" });
+  }
+
+  if (!actorMembership || actorMembership.role !== ROLE.ADMIN) {
+    throw createHttpError(403, {
+      message: "Only group admins can change member roles",
+    });
+  }
+
+  if (!targetMembership) {
+    throw createHttpError(404, {
+      message: "Target user is not an active member of this group",
+    });
+  }
+
+  if (targetMembership.role === newRole) {
+    return {
+      payload: {
+        chat_id: chatId,
+        user_id: memberId,
+        role: newRole,
+        actor_id: actorId,
+      },
+      eventPayload: null,
+    };
+  }
+
+  if (newRole === ROLE.MEMBER && targetMembership.role === ROLE.ADMIN) {
+    const adminCount = await ChatMemberModel.countDocuments({
+      chat_id: chatId,
+      is_active: true,
+      role: ROLE.ADMIN,
+    });
+    if (adminCount <= 1) {
+      throw createHttpError(400, {
+        message: "Group must have at least one admin",
+      });
+    }
+  }
+
+  await ChatMemberModel.updateOne(
+    { _id: targetMembership._id },
+    { $set: { role: newRole } },
+  );
+
+  const [actor, memberUser] = await Promise.all([
+    UserModel.findById(actorId).select("name").lean(),
+    UserModel.findById(memberId).select("name fcm_token").lean(),
+  ]);
+
+  const payload = {
+    chat_id: chatId,
+    user_id: memberId,
+    role: newRole,
+    actor_id: actorId,
+    actor_name: actor?.name ?? "",
+    member_name: memberUser?.name ?? "",
+  };
+
+  const eventPayload = await createChatEvent({
+    chat_id: chatId,
+    actor_id: actorId,
+    event: CHAT_EVENT.GROUP_MEMBER_ROLE_UPDATED,
+    payload,
+  });
+
+  if (memberUser?.fcm_token) {
+    const title = group.name ?? "Group Chat";
+    const body =
+      newRole === ROLE.ADMIN
+        ? `${actor?.name ?? "Admin"} made you an admin of ${title}`
+        : `${actor?.name ?? "Admin"} dismissed you as admin of ${title}`;
+    sendNotification({
+      token: memberUser.fcm_token,
+      title,
+      body,
+      data: {
+        chat_id: chatId,
+        event: CHAT_EVENT.GROUP_MEMBER_ROLE_UPDATED,
+      },
+    }).catch((err) =>
+      console.error("[FCM] Failed to send role update notification:", err),
+    );
+  }
+
   return { payload, eventPayload };
 };
 
@@ -304,4 +613,6 @@ export const chatService = {
   getChatById,
   createGroup,
   changeGroupMember,
+  leaveGroup,
+  changeMemberRole,
 };
