@@ -342,7 +342,7 @@ const getUserById = async (id: string, currentUserId: string) => {
   } else if (friendship?.status === FRIENDSHIP_STATUS.PENDING) {
     relationship_status =
       friendship.requester_id.toString() === currentUserId
-        ? FRIENDSHIP_STATUS.PENDING_OUTCOMING
+        ? FRIENDSHIP_STATUS.PENDING_OUTGOING
         : FRIENDSHIP_STATUS.PENDING_INCOMING;
   }
 

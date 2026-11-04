@@ -52,6 +52,9 @@ export const syncChats = async (socket: Socket, userId: string) => {
           case CHAT_EVENT.GROUP_MEMBER_ROLE_UPDATED:
             socket.emit("group-member-role-updated", payloadWithSeq);
             break;
+          case CHAT_EVENT.GROUP_PROFILE_UPDATED:
+            socket.emit("group-profile-updated", payloadWithSeq);
+            break;
           case CHAT_EVENT.USER_DETAIL_EVENT:
             socket.emit("user-info-updated", payloadWithSeq);
             break;

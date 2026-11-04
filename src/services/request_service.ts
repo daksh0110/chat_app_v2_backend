@@ -308,7 +308,12 @@ const getAllRelationshipsService = async (userId: string) => {
 
   const results: Array<{
     _id: string;
-    status: "FRIENDS" | "PENDING_INCOMING" | "PENDING_OUTCOMING" | "BLOCKED";
+    status:
+      | "FRIENDS"
+      | "PENDING_INCOMING"
+      | "PENDING_OUTGOING"
+      | "PENDING_OUTCOMING"
+      | "BLOCKED";
     name: string;
     email?: string;
     bio?: string;
@@ -324,13 +329,16 @@ const getAllRelationshipsService = async (userId: string) => {
     const isRequester = requester._id.toString() === userId;
     const otherUser = isRequester ? recipient : requester;
 
-    let relStatus: "FRIENDS" | "PENDING_INCOMING" | "PENDING_OUTCOMING" =
-      "FRIENDS";
+    let relStatus:
+      | "FRIENDS"
+      | "PENDING_INCOMING"
+      | "PENDING_OUTGOING"
+      | "PENDING_OUTCOMING" = "FRIENDS";
     if (f.status === FRIENDSHIP_STATUS.ACCEPTED) {
       relStatus = "FRIENDS";
     } else if (f.status === FRIENDSHIP_STATUS.PENDING) {
       relStatus = isRequester
-        ? FRIENDSHIP_STATUS.PENDING_OUTCOMING
+        ? FRIENDSHIP_STATUS.PENDING_OUTGOING
         : FRIENDSHIP_STATUS.PENDING_INCOMING;
     }
 

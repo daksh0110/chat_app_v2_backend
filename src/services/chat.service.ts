@@ -609,10 +609,105 @@ const changeMemberRole = async (
   return { payload, eventPayload };
 };
 
+const updateGroupProfile = async (
+  actorId: string,
+  chatId: string,
+  updateData: {
+    media?: {
+      key: string;
+      name?: string;
+      type: string;
+      content_type: string;
+    };
+    image?: string;
+    name?: string;
+    bio?: string;
+  },
+) => {
+  if (!mongoose.Types.ObjectId.isValid(chatId)) {
+    throw createHttpError(400, { message: "Invalid chat id" });
+  }
+
+  const [group, actorMembership] = await Promise.all([
+    ChatGroupModel.findOne({ _id: chatId, type: CHAT_TYPE.GROUP }),
+    ChatMemberModel.findOne({
+      chat_id: chatId,
+      user_id: actorId,
+      is_active: true,
+    }).lean(),
+  ]);
+
+  if (!group) {
+    throw createHttpError(404, { message: "Group not found" });
+  }
+
+  if (!actorMembership || actorMembership.role !== ROLE.ADMIN) {
+    throw createHttpError(403, {
+      message: "Only group admins can update group profile",
+    });
+  }
+
+  let mediaDoc: any = null;
+  if (updateData.media) {
+    await MediaModel.deleteMany({ actor_id: chatId });
+    mediaDoc = await MediaModel.create({
+      actor_id: chatId,
+      content_type: updateData.media.content_type,
+      key: updateData.media.key,
+      name: updateData.media.name ?? "group_photo",
+      type: updateData.media.type,
+    });
+    group.media = mediaDoc._id as any;
+    group.image = updateData.image ?? updateData.media.key;
+  } else if (updateData.image) {
+    group.image = updateData.image;
+  }
+
+  if (updateData.name && updateData.name.trim().length > 0) {
+    group.name = updateData.name.trim();
+  }
+  if (updateData.bio !== undefined) {
+    group.bio = updateData.bio;
+  }
+
+  await group.save();
+
+  const actor = await UserModel.findById(actorId).select("name").lean();
+
+  const payload = {
+    chat_id: chatId,
+    name: group.name,
+    bio: group.bio,
+    image: group.image,
+    media: mediaDoc
+      ? {
+          _id: mediaDoc._id.toString(),
+          actor_id: chatId,
+          key: mediaDoc.key,
+          name: mediaDoc.name,
+          type: mediaDoc.type,
+          content_type: mediaDoc.content_type,
+        }
+      : undefined,
+    actor_id: actorId,
+    actor_name: actor?.name ?? "",
+  };
+
+  const eventPayload = await createChatEvent({
+    chat_id: chatId,
+    actor_id: actorId,
+    event: CHAT_EVENT.GROUP_PROFILE_UPDATED,
+    payload,
+  });
+
+  return { payload, eventPayload };
+};
+
 export const chatService = {
   getChatById,
   createGroup,
   changeGroupMember,
   leaveGroup,
   changeMemberRole,
+  updateGroupProfile,
 };

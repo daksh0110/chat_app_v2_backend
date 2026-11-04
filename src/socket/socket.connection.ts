@@ -16,6 +16,7 @@ import { addGroupMember } from "./group/add_member";
 import { removeGroupMember } from "./group/remove_member";
 import { leaveGroup } from "./group/leave_group";
 import { changeMemberRole } from "./group/change_role";
+import { updateGroupProfile } from "./group/update_group";
 import { BlockModel } from "../models/block.model";
 import { messageReactionSocket } from "./socket.reaction";
 import { deleteMessageSocket } from "./socket.delete_message";
@@ -112,6 +113,7 @@ const socketConnection = () => {
       removeGroupMember(socket, userId);
       leaveGroup(socket, userId);
       changeMemberRole(socket, userId);
+      updateGroupProfile(socket, userId);
       messageReactionSocket(socket, userId);
       deleteMessageSocket(socket, userId);
     } catch (error) {
