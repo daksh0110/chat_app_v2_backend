@@ -20,6 +20,10 @@ import { updateGroupProfile } from "./group/update_group";
 import { BlockModel } from "../models/block.model";
 import { messageReactionSocket } from "./socket.reaction";
 import { deleteMessageSocket } from "./socket.delete_message";
+import { updateChatSettingsSocket } from "./chat_settings/update_settings";
+import { disappearingMessagesSocket } from "./chat_settings/disappearing_messages";
+import { editMessageSocket } from "./socket.edit_message";
+import { pinMessageSocket } from "./socket.pin_message";
 
 export const server = http.createServer(app);
 
@@ -116,6 +120,10 @@ const socketConnection = () => {
       updateGroupProfile(socket, userId);
       messageReactionSocket(socket, userId);
       deleteMessageSocket(socket, userId);
+      editMessageSocket(socket, userId);
+      pinMessageSocket(socket, userId);
+      updateChatSettingsSocket(socket, userId);
+      disappearingMessagesSocket(socket, userId);
     } catch (error) {
       console.log("❌ Invalid token");
       socket.disconnect();

@@ -1,4 +1,5 @@
 import createHttpError from "http-errors";
+import { Types } from "mongoose";
 import { BlockModel } from "../models/block.model";
 import {
   FRIENDSHIP_STATUS,
@@ -6,6 +7,8 @@ import {
 } from "../models/friend_request.model";
 import { UserModel } from "../models/user.model";
 import { MediaModel } from "../models/media_modal";
+import { CHAT_TYPE, ChatGroupModel } from "../models/chat_group.modal";
+import { ChatMemberModel } from "../models/chat_group_member.modal";
 import { awsService } from "./aws.service";
 import { sendNotification } from "./notification.service";
 import { io } from "../socket/socket.connection";
@@ -351,6 +354,60 @@ const getAllRelationshipsService = async (userId: string) => {
       profile_picture: otherUser.profile_picture,
       media: otherUser.media,
     });
+  }
+
+  // Ensure legacy direct chats automatically become friends
+  const myDirectMembers = await ChatMemberModel.find({
+    user_id: userId,
+    is_active: true,
+  }).select("chat_id");
+  const myDirectChatIds = myDirectMembers.map((m) => m.chat_id);
+  const directChats = await ChatGroupModel.find({
+    _id: { $in: myDirectChatIds },
+    type: CHAT_TYPE.DIRECT,
+  }).select("_id");
+  const directChatIds = directChats.map((c) => c._id);
+  const otherMembers = await ChatMemberModel.find({
+    chat_id: { $in: directChatIds },
+    user_id: { $ne: new Types.ObjectId(userId) },
+    is_active: true,
+  }).select("user_id");
+
+  for (const om of otherMembers) {
+    const otherId = om.user_id.toString();
+    const alreadyPresent = results.some((r) => r._id === otherId);
+    if (!alreadyPresent) {
+      await FriendshipModel.findOneAndUpdate(
+        {
+          $or: [
+            { requester_id: userId, recipient_id: otherId },
+            { requester_id: otherId, recipient_id: userId },
+          ],
+        },
+        {
+          $setOnInsert: {
+            requester_id: userId,
+            recipient_id: otherId,
+            status: FRIENDSHIP_STATUS.ACCEPTED,
+          },
+        },
+        { upsert: true, new: true }
+      );
+      const userDoc = await UserModel.findById(otherId)
+        .select("name email bio profile_picture media")
+        .lean();
+      if (userDoc) {
+        results.push({
+          _id: otherId,
+          status: "FRIENDS",
+          name: userDoc.name,
+          email: userDoc.email,
+          bio: userDoc.bio,
+          profile_picture: userDoc.profile_picture,
+          media: userDoc.media,
+        });
+      }
+    }
   }
 
   const blocks = await BlockModel.find({ blocker_id: userId })

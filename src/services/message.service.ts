@@ -6,6 +6,7 @@ import { MessageStatusModel } from "../models/message_status_modal";
 import { MessageReactionModel } from "../models/message_reaction.modal";
 import { UserModel } from "../models/user.model";
 import { BlockModel } from "../models/block.model";
+import { FriendshipModel, FRIENDSHIP_STATUS } from "../models/friend_request.model";
 import { awsService } from "./aws.service";
 import { sendNotification } from "./notification.service";
 import { Types } from "mongoose";
@@ -33,6 +34,16 @@ const findOrCreateChatId = async (userId: string, receiverId: string) => {
   });
 
   if (!chat) {
+    const friendship = await FriendshipModel.findOne({
+      $or: [
+        { requester_id: userId, recipient_id: receiverId },
+        { requester_id: receiverId, recipient_id: userId },
+      ],
+    });
+    if (!friendship || friendship.status !== FRIENDSHIP_STATUS.ACCEPTED) {
+      throw new Error("You can only message users who are your friends");
+    }
+
     chat = await ChatGroupModel.create({
       type: CHAT_TYPE.DIRECT,
     });
@@ -47,6 +58,21 @@ const findOrCreateChatId = async (userId: string, receiverId: string) => {
         user_id: receiverId,
       },
     ]);
+  } else {
+    // If chat already exists for legacy users, ensure they are friends
+    const existingFriendship = await FriendshipModel.findOne({
+      $or: [
+        { requester_id: userId, recipient_id: receiverId },
+        { requester_id: receiverId, recipient_id: userId },
+      ],
+    });
+    if (!existingFriendship) {
+      await FriendshipModel.create({
+        requester_id: userId,
+        recipient_id: receiverId,
+        status: FRIENDSHIP_STATUS.ACCEPTED,
+      });
+    }
   }
 
   return chat._id;
@@ -88,6 +114,52 @@ const createMessage = async (
       sender_name: senderName || "",
       message: replyMsg || "",
     };
+  }
+
+  const [chatParticipants, chatGroup] = await Promise.all([
+    ChatMemberModel.find({
+      chat_id: chatId,
+      is_active: true,
+    }).select("user_id"),
+    ChatGroupModel.findById(chatId).select("name type").lean(),
+  ]);
+
+  let isBlockedByRecipient = false;
+  let blockedRecipientId: string | null = null;
+
+  if (chatGroup?.type === CHAT_TYPE.DIRECT) {
+    const recipientMember = chatParticipants.find(
+      (p) => p.user_id.toString() !== senderId,
+    );
+    if (recipientMember) {
+      const recipientId = recipientMember.user_id.toString();
+      const blocked = await BlockModel.exists({
+        blocker_id: recipientId,
+        blocked_user_id: senderId,
+      });
+      if (blocked) {
+        isBlockedByRecipient = true;
+        blockedRecipientId = recipientId;
+      }
+
+      const existingFriendship = await FriendshipModel.findOne({
+        $or: [
+          { requester_id: senderId, recipient_id: recipientId },
+          { requester_id: recipientId, recipient_id: senderId },
+        ],
+      });
+
+      if (!existingFriendship) {
+        // Legacy chat exists: automatically make them friends
+        await FriendshipModel.create({
+          requester_id: senderId,
+          recipient_id: recipientId,
+          status: FRIENDSHIP_STATUS.ACCEPTED,
+        });
+      } else if (existingFriendship.status !== FRIENDSHIP_STATUS.ACCEPTED) {
+        throw new Error("You can only message users who are your friends");
+      }
+    }
   }
 
   const messageDb = await MessageModel.create({
@@ -136,34 +208,6 @@ const createMessage = async (
         };
       }),
     );
-  }
-
-  const [chatParticipants, chatGroup] = await Promise.all([
-    ChatMemberModel.find({
-      chat_id: chatId,
-      is_active: true,
-    }).select("user_id"),
-    ChatGroupModel.findById(chatId).select("name type").lean(),
-  ]);
-
-  let isBlockedByRecipient = false;
-  let blockedRecipientId: string | null = null;
-
-  if (chatGroup?.type === CHAT_TYPE.DIRECT) {
-    const recipientMember = chatParticipants.find(
-      (p) => p.user_id.toString() !== senderId,
-    );
-    if (recipientMember) {
-      const recipientId = recipientMember.user_id.toString();
-      const blocked = await BlockModel.exists({
-        blocker_id: recipientId,
-        blocked_user_id: senderId,
-      });
-      if (blocked) {
-        isBlockedByRecipient = true;
-        blockedRecipientId = recipientId;
-      }
-    }
   }
 
   const messageStatuses = chatParticipants
@@ -344,9 +388,83 @@ const deleteMessageForMe = async (messageId: string, userId: string) => {
   };
 };
 
+const editMessage = async (messageId: string, userId: string, newText: string) => {
+  const message = await MessageModel.findById(messageId);
+  if (!message) {
+    throw new Error("Message not found");
+  }
+
+  if (message.is_deleted) {
+    throw new Error("Cannot edit a deleted message");
+  }
+
+  if (message.sender_id.toString() !== userId) {
+    throw new Error("Unauthorized to edit this message");
+  }
+
+  const editedAt = new Date();
+  await MessageModel.updateOne(
+    { _id: messageId },
+    {
+      $set: {
+        message: newText,
+        is_edited: true,
+        edited_at: editedAt,
+      },
+    },
+  );
+
+  return {
+    message_id: messageId,
+    chat_id: message.chat_id.toString(),
+    message: newText,
+    is_edited: true,
+    edited_at: editedAt.getTime(),
+  };
+};
+
+const pinMessage = async (messageId: string, userId: string, isPinned: boolean) => {
+  const message = await MessageModel.findById(messageId);
+  if (!message) {
+    throw new Error("Message not found");
+  }
+
+  const chatId = message.chat_id.toString();
+  const membership = await ChatMemberModel.findOne({
+    chat_id: chatId,
+    user_id: userId,
+    is_active: true,
+  });
+
+  if (!membership) {
+    throw new Error("Unauthorized to pin messages in this chat");
+  }
+
+  const pinnedAt = isPinned ? new Date() : undefined;
+  await MessageModel.updateOne(
+    { _id: messageId },
+    {
+      $set: {
+        is_pinned: isPinned,
+        pinned_at: pinnedAt,
+      },
+    },
+  );
+
+  return {
+    message_id: messageId,
+    chat_id: chatId,
+    is_pinned: isPinned,
+    pinned_at: pinnedAt ? pinnedAt.getTime() : null,
+    pinned_by: userId,
+  };
+};
+
 export const messageService = {
   findOrCreateChatId,
   createMessage,
   deleteMessageForEveryone,
   deleteMessageForMe,
+  editMessage,
+  pinMessage,
 };
