@@ -26,6 +26,10 @@ export interface IMessage {
   reply_to?: IReplyTo;
   is_deleted?: boolean;
   deleted_for?: Types.ObjectId[];
+  is_edited?: boolean;
+  edited_at?: Date;
+  is_pinned?: boolean;
+  pinned_at?: Date;
 }
 
 const messageSchema = new Schema<IMessage>(
@@ -84,6 +88,20 @@ const messageSchema = new Schema<IMessage>(
         ref: "User",
       },
     ],
+    is_edited: {
+      type: Boolean,
+      default: false,
+    },
+    edited_at: {
+      type: Date,
+    },
+    is_pinned: {
+      type: Boolean,
+      default: false,
+    },
+    pinned_at: {
+      type: Date,
+    },
   },
   {
     timestamps: true,
