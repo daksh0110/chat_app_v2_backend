@@ -87,40 +87,140 @@ const createOtpEmail = ({
 };
 
 const changePasswordEmail = async ({ email, otp }: changePasswordProps) => {
-  const content = createOtpEmail({
-    title: "Reset your password",
-    preheader: "Password reset",
-    message:
-      "Use the verification code below to reset your Atlas Messenger password.",
-    otp,
-  });
+  try {
+    const content = createOtpEmail({
+      title: "Reset your password",
+      preheader: "Password reset",
+      message:
+        "Use the verification code below to reset your Atlas Messenger password.",
+      otp,
+    });
 
-  return resend.emails.send({
-    from: sender,
-    to: email,
-    subject: "Reset your Atlas Messenger password",
-    ...content,
-  });
+    const response = await resend.emails.send({
+      from: sender,
+      to: email,
+      subject: "Reset your Atlas Messenger password",
+      ...content,
+    });
+
+    if (response.error) {
+      console.error(
+        `[EmailService] Failed to send password reset email to ${email}:`,
+        response.error,
+      );
+      throw new Error(
+        `Failed to send password reset email: ${response.error.message || JSON.stringify(response.error)}`,
+      );
+    }
+
+    return response;
+  } catch (error) {
+    console.error(
+      `[EmailService] Error in changePasswordEmail for ${email}:`,
+      error,
+    );
+    throw error;
+  }
 };
 
 const sendVerificationEmail = async ({ email, otp }: changePasswordProps) => {
-  const content = createOtpEmail({
-    title: "Verify your email address",
-    preheader: "Email verification",
-    message:
-      "Welcome to Atlas Messenger. Enter this code to verify your email address and finish setting up your account.",
-    otp,
-  });
+  try {
+    const content = createOtpEmail({
+      title: "Verify your email address",
+      preheader: "Email verification",
+      message:
+        "Welcome to Atlas Messenger. Enter this code to verify your email address and finish setting up your account.",
+      otp,
+    });
 
-  return resend.emails.send({
-    from: sender,
-    to: email,
-    subject: "Verify your Atlas Messenger email",
-    ...content,
-  });
+    const response = await resend.emails.send({
+      from: sender,
+      to: email,
+      subject: "Verify your Atlas Messenger email",
+      ...content,
+    });
+
+    if (response.error) {
+      console.error(
+        `[EmailService] Failed to send verification email to ${email}:`,
+        response.error,
+      );
+      throw new Error(
+        `Failed to send verification email: ${response.error.message || JSON.stringify(response.error)}`,
+      );
+    }
+
+    return response;
+  } catch (error) {
+    console.error(
+      `[EmailService] Error in sendVerificationEmail for ${email}:`,
+      error,
+    );
+    throw error;
+  }
+};
+
+const sendSupportEmail = async ({
+  name,
+  email,
+  subject,
+  message,
+}: {
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+}) => {
+  const recipient =
+    process.env.SUPPORT_EMAIL || "daskhmahajan0110@gmail.com";
+  const safeName = escapeHtml(name);
+  const safeEmail = escapeHtml(email);
+  const safeSubject = escapeHtml(subject);
+  const safeMessage = escapeHtml(message).replace(/\n/g, "<br>");
+
+  try {
+    const response = await resend.emails.send({
+      from: sender,
+      to: recipient,
+      replyTo: email,
+      subject: `[Support Query] ${subject} - from ${name}`,
+      text: `Support Issue Reported\n\nName: ${name}\nEmail: ${email}\nSubject: ${subject}\n\nMessage:\n${message}\n\n--\nAtlas Messenger Support Bot`,
+      html: `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>New Support Query</title>
+  </head>
+  <body style="margin:0;padding:24px;background-color:#f4f6f8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;color:#1e293b;">
+    <div style="max-width:600px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;padding:32px;">
+      <h2 style="margin:0 0 16px;color:#0f172a;border-bottom:2px solid #3b82f6;padding-bottom:12px;">New User Support Query / Bug Report</h2>
+      <p style="margin:8px 0;font-size:15px;"><strong>From:</strong> ${safeName} (&lt;${safeEmail}&gt;)</p>
+      <p style="margin:8px 0;font-size:15px;"><strong>Subject:</strong> ${safeSubject}</p>
+      <p style="margin:8px 0;font-size:15px;"><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+      <hr style="border:0;border-top:1px solid #e2e8f0;margin:20px 0;">
+      <h3 style="margin:0 0 8px;font-size:14px;color:#64748b;text-transform:uppercase;letter-spacing:1px;">Message Content:</h3>
+      <div style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;font-size:15px;line-height:1.6;white-space:pre-wrap;">${safeMessage}</div>
+      <p style="margin:24px 0 0;font-size:13px;color:#94a3b8;">You can reply directly to this email to contact the user at ${safeEmail}.</p>
+    </div>
+  </body>
+</html>`,
+    });
+
+    if (response.error) {
+      console.error(
+        `[EmailService] Failed to send support email to ${recipient}:`,
+        response.error,
+      );
+    }
+
+    return response;
+  } catch (error) {
+    console.error(`[EmailService] Error in sendSupportEmail:`, error);
+  }
 };
 
 export const emailService = {
   changePasswordEmail,
   sendVerificationEmail,
+  sendSupportEmail,
 };
